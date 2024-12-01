@@ -21,7 +21,7 @@ let ball;
 const game = new Phaser.Game(config);
 
 function preload() {
-    this.load.image('ball', 'assets/ball.png');  // تصویر توپ را بارگذاری می‌کند
+    this.load.image('ball', 'ball.png');  // تصویر توپ را بارگذاری می‌کند
 }
 
 function create() {
