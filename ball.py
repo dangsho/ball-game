@@ -8,9 +8,9 @@ import asyncio
 import logging
 import jdatetime
 
-# تنظیم لاگ‌ها
+# تنظیم لاگ‌ها با سطح DEBUG برای اشکال‌زدایی بهتر
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # تغییر سطح لاگ به DEBUG
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler("bot_errors.log"),
@@ -19,7 +19,7 @@ logging.basicConfig(
 )
 
 # تنظیمات توکن و دیتابیس
-TOKEN = os.getenv("BOT_TOKEN", "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8")
+TOKEN = os.getenv("8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8")
 DATABASE = 'game_bot.db'
 
 if not TOKEN:
@@ -29,10 +29,14 @@ bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
+# اضافه کردن مسیر اصلی
+@flask_app.route('/')
+async def home():
+    return "سرویس در حال اجرا است 🎉", 200
+
 # هندلر /start
 async def start(update: Update, context):
     try:
-        # ارسال لینک مستقیم بازی به کاربر
         game_url = "https://dangsho.github.io/ball-game/"
         await update.message.reply_text(
             f"🎮 بازی شما شروع شد! روی لینک زیر کلیک کنید تا وارد بازی شوید:\n{game_url}"
@@ -77,8 +81,11 @@ async def webhook_update():
             logging.error(f"Error processing webhook: {e}")
             return 'Bad Request', 400
 
-def set_webhook():
-    public_url = "https://b400-185-53-211-187.ngrok-free.app"
+async def set_webhook():
+    public_url = os.getenv("RENDER_EXTERNAL_URL")
+    if not public_url:
+        raise ValueError("RENDER_EXTERNAL_URL is not set. This should be provided by Render.")
+
     webhook_url = f"{public_url}/webhook"
     set_webhook_response = requests.post(
         f"https://api.telegram.org/bot{TOKEN}/setWebhook",
@@ -87,8 +94,10 @@ def set_webhook():
     if set_webhook_response.status_code != 200:
         logging.error(f"Failed to set webhook: {set_webhook_response.text}")
         raise RuntimeError(f"Failed to set webhook: {set_webhook_response.text}")
+    else:
+        logging.info(f"Webhook set to: {webhook_url}")
 
-def check_webhook():
+async def check_webhook():
     response = requests.get(f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo")
     logging.info("Webhook info: %s", response.json())
 
@@ -104,12 +113,14 @@ async def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(InlineQueryHandler(inline_query))
 
-    set_webhook()
-    check_webhook()
+    await set_webhook()
+    await check_webhook()
 
     await application.initialize()
     asyncio.create_task(application.start())
-    await flask_app.run_task(host="0.0.0.0", port=5000)
+
+    port = int(os.getenv('PORT', 5000))  # پورت داینامیک ارائه شده توسط Render
+    await flask_app.run_task(host="0.0.0.0", port=port)
 
 if __name__ == '__main__':
     asyncio.run(main())
