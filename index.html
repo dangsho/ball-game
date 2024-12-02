@@ -3,24 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple HTML5 Game</title>
+    <title>تاریخ و ساعت</title>
     <style>
         body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
             margin: 0;
             padding: 0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
-            align-items: center;
             height: 100vh;
-            background-color: #000;
         }
-        canvas {
-            border: 1px solid white;
+        .time-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .time {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
         }
     </style>
 </head>
 <body>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
-    <script src="game.js"></script>
+    <div class="time-container">
+        <h1>تاریخ و ساعت جاری</h1>
+        <p class="time" id="time"></p>
+    </div>
+    <script>
+        function updateTime() {
+            const now = new Date();
+            const formattedTime = now.toLocaleString('fa-IR', { hour12: false });
+            document.getElementById('time').textContent = formattedTime;
+        }
+        setInterval(updateTime, 1000); // هر ثانیه به‌روزرسانی
+        updateTime();
+    </script>
 </body>
 </html>
