@@ -19,12 +19,13 @@ logging.basicConfig(
 )
 
 # تنظیمات توکن و دیتابیس
-TOKEN = os.getenv("8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8")
+TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 DATABASE = 'game_bot.db'
 
 if not TOKEN:
+    print("TOKEN is not set in the environment variables.")
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
-
+    
 bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
