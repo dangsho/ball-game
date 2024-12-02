@@ -1,0 +1,115 @@
+import os
+from quart import Quart, request
+from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
+from telegram.ext import Application, CommandHandler, InlineQueryHandler
+import sqlite3
+import requests
+import asyncio
+import logging
+import jdatetime
+
+# تنظیم لاگ‌ها
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("bot_errors.log"),
+        logging.StreamHandler()
+    ]
+)
+
+# تنظیمات توکن و دیتابیس
+TOKEN = os.getenv("BOT_TOKEN", "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8")
+DATABASE = 'game_bot.db'
+
+if not TOKEN:
+    raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
+
+bot = Bot(token=TOKEN)
+application = Application.builder().token(TOKEN).build()
+flask_app = Quart(__name__)
+
+# هندلر /start
+async def start(update: Update, context):
+    try:
+        # ارسال لینک مستقیم بازی به کاربر
+        game_url = "https://dangsho.github.io/ball-game/"
+        await update.message.reply_text(
+            f"🎮 بازی شما شروع شد! روی لینک زیر کلیک کنید تا وارد بازی شوید:\n{game_url}"
+        )
+    except Exception as e:
+        logging.error(f"Error in /start handler: {e}")
+        await update.message.reply_text("متأسفیم، مشکلی پیش آمده است. لطفاً بعداً دوباره امتحان کنید.")
+
+# هندلر اینلاین
+async def inline_query(update: Update, context):
+    try:
+        query = update.inline_query.query
+        now = jdatetime.datetime.now()
+        current_time = now.strftime("%Y/%m/%d - %H:%M:%S")
+
+        # ساختن نتیجه اینلاین
+        results = [
+            InlineQueryResultArticle(
+                id="1",
+                title="⏰ تاریخ و ساعت فعلی (شمسی)",
+                input_message_content=InputTextMessageContent(
+                    f"تاریخ و ساعت فعلی (هجری شمسی): {current_time}"
+                )
+            )
+        ]
+
+        # ارسال پاسخ به اینلاین کوئری
+        await update.inline_query.answer(results)
+    except Exception as e:
+        logging.error(f"Error in inline query handler: {e}")
+
+# مسیر webhook
+@flask_app.route('/webhook', methods=['POST'])
+async def webhook_update():
+    if request.method == "POST":
+        try:
+            data = await request.get_json()
+            update = Update.de_json(data, bot)
+            await application.update_queue.put(update)
+            return 'ok', 200
+        except Exception as e:
+            logging.error(f"Error processing webhook: {e}")
+            return 'Bad Request', 400
+
+def set_webhook():
+    public_url = "https://b400-185-53-211-187.ngrok-free.app"
+    webhook_url = f"{public_url}/webhook"
+    set_webhook_response = requests.post(
+        f"https://api.telegram.org/bot{TOKEN}/setWebhook",
+        json={"url": webhook_url}
+    )
+    if set_webhook_response.status_code != 200:
+        logging.error(f"Failed to set webhook: {set_webhook_response.text}")
+        raise RuntimeError(f"Failed to set webhook: {set_webhook_response.text}")
+
+def check_webhook():
+    response = requests.get(f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo")
+    logging.info("Webhook info: %s", response.json())
+
+async def main():
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS game_sessions
+                 (unique_id TEXT, user_id INTEGER, game_short_name TEXT, inline_message_id TEXT)''')
+    conn.commit()
+    conn.close()
+
+    await bot.initialize()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(InlineQueryHandler(inline_query))
+
+    set_webhook()
+    check_webhook()
+
+    await application.initialize()
+    asyncio.create_task(application.start())
+    await flask_app.run_task(host="0.0.0.0", port=5000)
+
+if __name__ == '__main__':
+    asyncio.run(main())
