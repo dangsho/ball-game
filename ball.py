@@ -36,7 +36,14 @@ flask_app = Quart(__name__)
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
-
+async def start(update: Update, context):
+    try:
+        game_url = "https://dangsho.github.io/ball-game/"
+        await update.message.reply_text(f" برای دیدن تاریخ کلیک کنید:\n{game_url}")
+    except Exception as e:
+        logging.error(f"Error in /start handler: {e}")
+        await update.message.reply_text("متأسفیم، مشکلی پیش آمده است.")
+        
 async def capture_screenshot_to_memory(url):
     """گرفتن اسکرین‌شات از یک URL و ذخیره در حافظه"""
     try:
