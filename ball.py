@@ -1,18 +1,16 @@
 import os
 from quart import Quart, request
-from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent, ParseMode
+from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Application, CommandHandler, InlineQueryHandler
 import sqlite3
 import requests
 import asyncio
 import logging
 import jdatetime
-from datetime import datetime
-from convertdate import islamic
 
 # تنظیم لاگ‌ها با سطح DEBUG برای اشکال‌زدایی بهتر
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.DEBUG,  # تغییر سطح لاگ به DEBUG
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler("bot_errors.log"),
@@ -40,27 +38,10 @@ async def home():
 # هندلر /start
 async def start(update: Update, context):
     try:
-        now = jdatetime.datetime.now()
-        gregorian_now = datetime.now()
-        islamic_now = islamic.from_gregorian(gregorian_now.year, gregorian_now.month, gregorian_now.day)
-
-        shamsi_date = now.strftime("%Y/%m/%d - %H:%M:%S")
-        gregorian_date = gregorian_now.strftime("%Y/%m/%d - %H:%M:%S")
-        islamic_date = f"{islamic_now[0]}/{islamic_now[1]}/{islamic_now[2]}"
-
         game_url = "https://dangsho.github.io/ball-game/"
-
-        message = (
-            f"برای شروع  روی لینک زیر کلیک کنید:\n"
-            f"<a href='{game_url}'>🌟 بازی اینجا باز می‌شود</a>\n\n"
-            f"⏰ <b>ساعت:</b> {now.strftime('%H:%M:%S')}\n"
-            f"📅 <b>تاریخ‌ها:</b>\n"
-            f"<b><font color='blue'>هجری شمسی:</font></b> {shamsi_date}\n"
-            f"<b><font color='green'>میلادی:</font></b> {gregorian_date}\n"
-            f"<b><font color='yellow'>قمری:</font></b> {islamic_date}"
+        await update.message.reply_text(
+            f" برای دیدن تاریخ کلیک کنید:\n{game_url}"
         )
-
-        await update.message.reply_text(message, parse_mode=ParseMode.HTML)
     except Exception as e:
         logging.error(f"Error in /start handler: {e}")
         await update.message.reply_text("متأسفیم، مشکلی پیش آمده است. لطفاً بعداً دوباره امتحان کنید.")
@@ -68,28 +49,17 @@ async def start(update: Update, context):
 # هندلر اینلاین
 async def inline_query(update: Update, context):
     try:
+        query = update.inline_query.query
         now = jdatetime.datetime.now()
-        gregorian_now = datetime.now()
-        islamic_now = islamic.from_gregorian(gregorian_now.year, gregorian_now.month, gregorian_now.day)
-
-        shamsi_date = now.strftime("%Y/%m/%d - %H:%M:%S")
-        gregorian_date = gregorian_now.strftime("%Y/%m/%d - %H:%M:%S")
-        islamic_date = f"{islamic_now[0]}/{islamic_now[1]}/{islamic_now[2]}"
+        current_time = now.strftime("%Y/%m/%d - %H:%M:%S")
 
         # ساختن نتیجه اینلاین
         results = [
             InlineQueryResultArticle(
                 id="1",
-                title="⏰ تاریخ و ساعت فعلی",
+                title="⏰ تاریخ و ساعت فعلی (شمسی)",
                 input_message_content=InputTextMessageContent(
-                    (
-                        f"⏰ <b>ساعت:</b> {now.strftime('%H:%M:%S')}\n"
-                        f"📅 <b>تاریخ‌ها:</b>\n"
-                        f"<b><font color='blue'>هجری شمسی:</font></b> {shamsi_date}\n"
-                        f"<b><font color='green'>میلادی:</font></b> {gregorian_date}\n"
-                        f"<b><font color='yellow'>قمری:</font></b> {islamic_date}"
-                    ),
-                    parse_mode=ParseMode.HTML
+                    f"تاریخ و ساعت فعلی (هجری شمسی): {current_time}"
                 )
             )
         ]
@@ -150,7 +120,7 @@ async def main():
     await application.initialize()
     asyncio.create_task(application.start())
 
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', 5000))  # پورت داینامیک ارائه شده توسط Render
     await flask_app.run_task(host="0.0.0.0", port=port)
 
 if __name__ == '__main__':
