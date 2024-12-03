@@ -8,7 +8,8 @@
         body {
             font-family: 'Arial', sans-serif;
             text-align: center;
-            background: linear-gradient(135deg, #c3e0e5, #ffffff);
+            background: linear-gradient(135deg, #2c2c2c, #121212);
+            color: #ffffff;
             margin: 0;
             padding: 0;
             display: flex;
@@ -18,17 +19,17 @@
             height: 100vh;
         }
         .time-container {
-            background: #ffffff;
+            background: #1e1e1e;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.5);
             max-width: 400px;
             width: 100%;
         }
         .time {
             font-size: 2rem;
             font-weight: bold;
-            margin: 10px 0;
+            margin: 15px 0;
         }
         .shamsi {
             color: blue;
@@ -43,7 +44,6 @@
 </head>
 <body>
     <div class="time-container">
-        <h1>تاریخ و ساعت جاری</h1>
         <p class="time shamsi" id="shamsi-time"></p>
         <p class="time gregorian" id="gregorian-time"></p>
         <p class="time hijri" id="hijri-time"></p>
@@ -65,9 +65,9 @@
             const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'full' }).format(now);
 
             // اعمال مقادیر به عناصر
-            document.getElementById('shamsi-time').textContent = `ساعت: ${time} | تاریخ شمسی: ${shamsiDate}`;
-            document.getElementById('gregorian-time').textContent = `تاریخ میلادی: ${gregorianDate}`;
-            document.getElementById('hijri-time').textContent = `تاریخ قمری: ${hijriDate}`;
+            document.getElementById('shamsi-time').textContent = `${time} - ${shamsiDate}`;
+            document.getElementById('gregorian-time').textContent = `${gregorianDate}`;
+            document.getElementById('hijri-time').textContent = `${hijriDate}`;
         }
 
         setInterval(updateTime, 1000); // هر ثانیه به‌روزرسانی
