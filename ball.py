@@ -9,6 +9,7 @@ from io import BytesIO
 from pyppeteer import launch
 from pytz import timezone
 import datetime
+import requests
 
 # تنظیم لاگ‌ها
 logging.basicConfig(
