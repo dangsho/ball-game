@@ -27,23 +27,30 @@
             width: 100%;
         }
         .time {
-            font-size: 2rem;
-            font-weight: bold;
             margin: 15px 0;
+            font-weight: bold;
+        }
+        .clock {
+            font-size: 2.5rem;
+            color: red;
         }
         .shamsi {
+            font-size: 2rem;
             color: blue;
         }
         .gregorian {
+            font-size: 1.8rem;
             color: green;
         }
         .hijri {
+            font-size: 1.6rem;
             color: gold;
         }
     </style>
 </head>
 <body>
     <div class="time-container">
+        <p class="time clock" id="clock-time"></p>
         <p class="time shamsi" id="shamsi-time"></p>
         <p class="time gregorian" id="gregorian-time"></p>
         <p class="time hijri" id="hijri-time"></p>
@@ -65,9 +72,10 @@
             const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'full' }).format(now);
 
             // اعمال مقادیر به عناصر
-            document.getElementById('shamsi-time').textContent = `${time} - ${shamsiDate}`;
-            document.getElementById('gregorian-time').textContent = `${gregorianDate}`;
-            document.getElementById('hijri-time').textContent = `${hijriDate}`;
+            document.getElementById('clock-time').textContent = time;
+            document.getElementById('shamsi-time').textContent = shamsiDate;
+            document.getElementById('gregorian-time').textContent = gregorianDate;
+            document.getElementById('hijri-time').textContent = hijriDate;
         }
 
         setInterval(updateTime, 1000); // هر ثانیه به‌روزرسانی
