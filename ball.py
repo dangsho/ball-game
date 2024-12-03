@@ -1,15 +1,14 @@
 import os
 from quart import Quart, request
-from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
+from telegram import Update, Bot, InlineQueryResultCachedPhoto
 from telegram.ext import Application, CommandHandler, InlineQueryHandler
 import sqlite3
-import requests
 import asyncio
 import logging
-import jdatetime
-import datetime
+from io import BytesIO
+from pyppeteer import launch
 from pytz import timezone
-from hijri_converter import convert
+import datetime
 
 # تنظیم لاگ‌ها
 logging.basicConfig(
@@ -22,8 +21,9 @@ logging.basicConfig(
 )
 
 # تنظیمات توکن و دیتابیس
-TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
+TOKEN = "YOUR_BOT_TOKEN"
 DATABASE = 'game_bot.db'
+GAME_URL = "https://dangsho.github.io/ball-game/"
 
 if not TOKEN:
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
@@ -36,53 +36,61 @@ flask_app = Quart(__name__)
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
-async def start(update: Update, context):
+
+async def capture_screenshot_to_memory(url):
+    """گرفتن اسکرین‌شات از یک URL و ذخیره در حافظه"""
     try:
-        game_url = "https://dangsho.github.io/ball-game/"
-        await update.message.reply_text(f" برای دیدن تاریخ کلیک کنید:\n{game_url}")
+        browser = await launch()
+        page = await browser.newPage()
+        await page.goto(url)
+        screenshot_buffer = BytesIO()
+        await page.screenshot({'path': None, 'fullPage': True, 'encoding': 'binary'})
+        screenshot_buffer.seek(0)
+        await browser.close()
+        return screenshot_buffer
     except Exception as e:
-        logging.error(f"Error in /start handler: {e}")
-        await update.message.reply_text("متأسفیم، مشکلی پیش آمده است.")
+        logging.error(f"Error capturing screenshot: {e}")
+        return None
+
+
+async def upload_photo_to_telegram(bot, buffer):
+    """آپلود موقت تصویر به تلگرام"""
+    try:
+        response = await bot.upload_media(buffer, media_type="photo")
+        return response.file_id
+    except Exception as e:
+        logging.error(f"Error uploading photo to Telegram: {e}")
+        return None
+
 
 async def inline_query(update: Update, context):
     try:
-        # زمان به وقت تهران
-        tehran_tz = timezone("Asia/Tehran")
-        tehran_time = datetime.datetime.now(tehran_tz)
+        # گرفتن اسکرین‌شات در حافظه
+        screenshot = await capture_screenshot_to_memory(GAME_URL)
+        if not screenshot:
+            await update.inline_query.answer([], cache_time=0)
+            return
 
-        # تاریخ شمسی
-        jalali_date = jdatetime.datetime.fromgregorian(datetime=tehran_time)
+        # آپلود تصویر به تلگرام و دریافت file_id
+        file_id = await upload_photo_to_telegram(bot, screenshot)
+        if not file_id:
+            await update.inline_query.answer([], cache_time=0)
+            return
 
-        # تاریخ میلادی
-        gregorian_date = tehran_time.strftime("%Y-%m-%d")
-
-        # تاریخ قمری
-        islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
-        hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
-
-        # ساختن متن پیام
-        message = (
-            f"⏰ زمان فعلی به وقت تهران:\n{tehran_time.strftime('%H:%M:%S')}\n\n"
-            f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n\n"
-            f"📅 تاریخ میلادی:\n{gregorian_date}\n\n"
-            f"📅 تاریخ قمری:\n{hijri_date}"
-        )
-
-        logging.debug(f"Generated message: {message}")
-
-        # ساختن نتیجه اینلاین
+        # ایجاد پاسخ اینلاین با فایل آپلود شده
         results = [
-            InlineQueryResultArticle(
+            InlineQueryResultCachedPhoto(
                 id="1",
-                title="⏰ مشاهده زمان و تاریخ",
-                input_message_content=InputTextMessageContent(message)
+                photo_file_id=file_id,
+                caption="📷 اسکرین‌شات بازی",
             )
         ]
 
-        # ارسال پاسخ به اینلاین کوئری با غیرفعال کردن کش
+        # ارسال پاسخ اینلاین
         await update.inline_query.answer(results, cache_time=0)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
+
 
 @flask_app.route('/webhook', methods=['POST'])
 async def webhook_update():
@@ -95,6 +103,7 @@ async def webhook_update():
         except Exception as e:
             logging.error(f"Error processing webhook: {e}")
             return 'Bad Request', 400
+
 
 async def set_webhook():
     public_url = os.getenv("RENDER_EXTERNAL_URL")
@@ -112,9 +121,9 @@ async def set_webhook():
     else:
         logging.info(f"Webhook set to: {webhook_url}")
 
+
 async def check_webhook():
     try:
-        # درخواست اطلاعات وبهوک
         response = requests.get(f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo")
         response_data = response.json()
 
@@ -125,6 +134,7 @@ async def check_webhook():
             raise ValueError(f"Webhook check failed: {response_data.get('description')}")
     except Exception as e:
         logging.error(f"Error while checking webhook: {e}")
+
 
 async def main():
     conn = sqlite3.connect(DATABASE)
@@ -146,6 +156,7 @@ async def main():
 
     port = int(os.getenv('PORT', 5000))
     await flask_app.run_task(host="0.0.0.0", port=port)
+
 
 if __name__ == '__main__':
     asyncio.run(main())

@@ -7,3 +7,4 @@ convertdate
 asyncio
 pytz
 hijri-converter
+pyppeteer
