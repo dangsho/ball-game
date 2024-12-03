@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 
 # تنظیمات توکن و دیتابیس
-TOKEN = "YOUR_BOT_TOKEN"
+TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 DATABASE = 'game_bot.db'
 
 if not TOKEN:
