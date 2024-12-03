@@ -9,7 +9,7 @@ import logging
 import jdatetime
 import datetime
 from pytz import timezone
-from umalqurra.hijri_date import HijriDate
+from hijri_converter import convert
 
 # تنظیم لاگ‌ها
 logging.basicConfig(
@@ -57,15 +57,15 @@ async def inline_query(update: Update, context):
         gregorian_date = tehran_time.strftime("%Y-%m-%d")
 
         # تاریخ قمری
-        hijri_date = HijriDate(tehran_time.year, tehran_time.month, tehran_time.day, gr=True)
-        islamic_date = hijri_date.strftime("%Y-%m-%d")
+        islamic_date = convert.Gregorian.to_hijri(tehran_time.year, tehran_time.month, tehran_time.day)
+        hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
         # ساختن متن پیام
         message = (
             f"⏰ زمان فعلی به وقت تهران:\n{tehran_time.strftime('%H:%M:%S')}\n\n"
             f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n\n"
             f"📅 تاریخ میلادی:\n{gregorian_date}\n\n"
-            f"📅 تاریخ قمری:\n{islamic_date}"
+            f"📅 تاریخ قمری:\n{hijri_date}"
         )
 
         # ساختن نتیجه اینلاین

@@ -6,4 +6,4 @@ quart
 convertdate
 asyncio
 pytz
-umalqurra
+hijri-converter
