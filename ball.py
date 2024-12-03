@@ -7,10 +7,13 @@ import requests
 import asyncio
 import logging
 import jdatetime
+import datetime
+from pytz import timezone
+from umalqurra.hijri_date import HijriDate
 
-# تنظیم لاگ‌ها با سطح DEBUG برای اشکال‌زدایی بهتر
+# تنظیم لاگ‌ها
 logging.basicConfig(
-    level=logging.DEBUG,  # تغییر سطح لاگ به DEBUG
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler("bot_errors.log"),
@@ -23,53 +26,61 @@ TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 DATABASE = 'game_bot.db'
 
 if not TOKEN:
-    print("TOKEN is not set in the environment variables.")
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
-    
+
 bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
-# اضافه کردن مسیر اصلی
 @flask_app.route('/')
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
-# هندلر /start
 async def start(update: Update, context):
     try:
         game_url = "https://dangsho.github.io/ball-game/"
-        await update.message.reply_text(
-            f" برای دیدن تاریخ کلیک کنید:\n{game_url}"
-        )
+        await update.message.reply_text(f" برای دیدن تاریخ کلیک کنید:\n{game_url}")
     except Exception as e:
         logging.error(f"Error in /start handler: {e}")
-        await update.message.reply_text("متأسفیم، مشکلی پیش آمده است. لطفاً بعداً دوباره امتحان کنید.")
+        await update.message.reply_text("متأسفیم، مشکلی پیش آمده است.")
 
-# هندلر اینلاین
 async def inline_query(update: Update, context):
     try:
-        query = update.inline_query.query
-        now = jdatetime.datetime.now()
-        current_time = now.strftime("%Y/%m/%d - %H:%M:%S")
+        # زمان به وقت تهران
+        tehran_tz = timezone("Asia/Tehran")
+        tehran_time = datetime.datetime.now(tehran_tz)
+
+        # تاریخ شمسی
+        jalali_date = jdatetime.datetime.fromgregorian(datetime=tehran_time)
+
+        # تاریخ میلادی
+        gregorian_date = tehran_time.strftime("%Y-%m-%d")
+
+        # تاریخ قمری
+        hijri_date = HijriDate(tehran_time.year, tehran_time.month, tehran_time.day, gr=True)
+        islamic_date = hijri_date.strftime("%Y-%m-%d")
+
+        # ساختن متن پیام
+        message = (
+            f"⏰ زمان فعلی به وقت تهران:\n{tehran_time.strftime('%H:%M:%S')}\n\n"
+            f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n\n"
+            f"📅 تاریخ میلادی:\n{gregorian_date}\n\n"
+            f"📅 تاریخ قمری:\n{islamic_date}"
+        )
 
         # ساختن نتیجه اینلاین
         results = [
             InlineQueryResultArticle(
                 id="1",
-                title="⏰ تاریخ و ساعت فعلی (شمسی)",
-                input_message_content=InputTextMessageContent(
-                    f"تاریخ و ساعت فعلی (هجری شمسی): {current_time}"
-                )
+                title="⏰ مشاهده زمان و تاریخ",
+                input_message_content=InputTextMessageContent(message)
             )
         ]
 
-        # ارسال پاسخ به اینلاین کوئری
         await update.inline_query.answer(results)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
 
-# مسیر webhook
 @flask_app.route('/webhook', methods=['POST'])
 async def webhook_update():
     if request.method == "POST":
@@ -86,7 +97,7 @@ async def set_webhook():
     public_url = os.getenv("RENDER_EXTERNAL_URL")
     if not public_url:
         raise ValueError("RENDER_EXTERNAL_URL is not set. This should be provided by Render.")
-
+    
     webhook_url = f"{public_url}/webhook"
     set_webhook_response = requests.post(
         f"https://api.telegram.org/bot{TOKEN}/setWebhook",
@@ -120,7 +131,7 @@ async def main():
     await application.initialize()
     asyncio.create_task(application.start())
 
-    port = int(os.getenv('PORT', 5000))  # پورت داینامیک ارائه شده توسط Render
+    port = int(os.getenv('PORT', 5000))
     await flask_app.run_task(host="0.0.0.0", port=port)
 
 if __name__ == '__main__':
