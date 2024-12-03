@@ -1,6 +1,6 @@
 import os
 from quart import Quart, request
-from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
+from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent, ParseMode
 from telegram.ext import Application, CommandHandler, InlineQueryHandler
 import sqlite3
 import requests
@@ -44,18 +44,23 @@ async def start(update: Update, context):
         gregorian_now = datetime.now()
         islamic_now = islamic.from_gregorian(gregorian_now.year, gregorian_now.month, gregorian_now.day)
 
-        shamsi_date = now.strftime("%Y/%m/%d")
-        gregorian_date = gregorian_now.strftime("%Y/%m/%d")
+        shamsi_date = now.strftime("%Y/%m/%d - %H:%M:%S")
+        gregorian_date = gregorian_now.strftime("%Y/%m/%d - %H:%M:%S")
         islamic_date = f"{islamic_now[0]}/{islamic_now[1]}/{islamic_now[2]}"
 
+        game_url = "https://dangsho.github.io/ball-game/"
+
         message = (
-            f"📅 تاریخ‌ها:\n"
-            f"هجری شمسی: {shamsi_date}\n"
-            f"میلادی: {gregorian_date}\n"
-            f"قمری: {islamic_date}\n"
+            f"برای شروع  روی لینک زیر کلیک کنید:\n"
+            f"<a href='{game_url}'>🌟 بازی اینجا باز می‌شود</a>\n\n"
+            f"⏰ <b>ساعت:</b> {now.strftime('%H:%M:%S')}\n"
+            f"📅 <b>تاریخ‌ها:</b>\n"
+            f"<b><font color='blue'>هجری شمسی:</font></b> {shamsi_date}\n"
+            f"<b><font color='green'>میلادی:</font></b> {gregorian_date}\n"
+            f"<b><font color='yellow'>قمری:</font></b> {islamic_date}"
         )
 
-        await update.message.reply_text(message)
+        await update.message.reply_text(message, parse_mode=ParseMode.HTML)
     except Exception as e:
         logging.error(f"Error in /start handler: {e}")
         await update.message.reply_text("متأسفیم، مشکلی پیش آمده است. لطفاً بعداً دوباره امتحان کنید.")
@@ -77,10 +82,14 @@ async def inline_query(update: Update, context):
                 id="1",
                 title="⏰ تاریخ و ساعت فعلی",
                 input_message_content=InputTextMessageContent(
-                    f"📅 تاریخ‌ها:\n"
-                    f"هجری شمسی: {shamsi_date}\n"
-                    f"میلادی: {gregorian_date}\n"
-                    f"قمری: {islamic_date}\n"
+                    (
+                        f"⏰ <b>ساعت:</b> {now.strftime('%H:%M:%S')}\n"
+                        f"📅 <b>تاریخ‌ها:</b>\n"
+                        f"<b><font color='blue'>هجری شمسی:</font></b> {shamsi_date}\n"
+                        f"<b><font color='green'>میلادی:</font></b> {gregorian_date}\n"
+                        f"<b><font color='yellow'>قمری:</font></b> {islamic_date}"
+                    ),
+                    parse_mode=ParseMode.HTML
                 )
             )
         ]
