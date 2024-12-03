@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 
 # تنظیمات توکن و دیتابیس
-TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
+TOKEN = "YOUR_BOT_TOKEN"
 DATABASE = 'game_bot.db'
 
 if not TOKEN:
@@ -57,7 +57,7 @@ async def inline_query(update: Update, context):
         gregorian_date = tehran_time.strftime("%Y-%m-%d")
 
         # تاریخ قمری
-        islamic_date = convert.Gregorian.to_hijri(tehran_time.year, tehran_time.month, tehran_time.day)
+        islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
         # ساختن متن پیام
