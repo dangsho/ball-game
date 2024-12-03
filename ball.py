@@ -73,16 +73,19 @@ async def upload_photo_to_telegram(bot, buffer):
 
 async def inline_query(update: Update, context):
     try:
+        # ارسال پاسخ موقت برای جلوگیری از تایم‌اوت
+        await update.inline_query.answer([], cache_time=1)
+
         # گرفتن اسکرین‌شات در حافظه
         screenshot = await capture_screenshot_to_memory(GAME_URL)
         if not screenshot:
-            await update.inline_query.answer([], cache_time=0)
+            logging.warning("Screenshot failed, no result will be sent.")
             return
 
         # آپلود تصویر به تلگرام و دریافت file_id
         file_id = await upload_photo_to_telegram(bot, screenshot)
         if not file_id:
-            await update.inline_query.answer([], cache_time=0)
+            logging.warning("Upload failed, no result will be sent.")
             return
 
         # ایجاد پاسخ اینلاین با فایل آپلود شده
@@ -90,12 +93,12 @@ async def inline_query(update: Update, context):
             InlineQueryResultCachedPhoto(
                 id="1",
                 photo_file_id=file_id,
-                caption="📷 اسکرین‌شات بازی",
+                caption="📷 ارسال تاریخ",
             )
         ]
 
-        # ارسال پاسخ اینلاین
-        await update.inline_query.answer(results, cache_time=0)
+        # ارسال پاسخ اینلاین نهایی
+        await update.inline_query.answer(results, cache_time=10)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
 
