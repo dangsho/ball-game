@@ -41,6 +41,13 @@ bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
+@flask_app.before_request
+async def set_permissions_policy():
+    """تنظیم هدر Permissions-Policy برای تمامی درخواست‌ها"""
+    response = await flask_app.make_response()
+    response.headers["Permissions-Policy"] = "interest-cohort=()"
+    return response
+
 @flask_app.route('/')
 async def home():
     logger.info("Health check received.")
@@ -55,15 +62,9 @@ async def start(update: Update, context):
         logger.error(f"Error in /start handler: {e}")
         await update.message.reply_text("متأسفیم، مشکلی پیش آمده است.")
 
-browser = await launch(
-    args=["--disable-features=InterestCohort"]
-)
-
-response.headers["Permissions-Policy"] = "interest-cohort=()"
-
 async def capture_screenshot_to_memory(url):
     try:
-        browser = await launch()
+        browser = await launch(args=["--disable-features=InterestCohort"])  # تنظیم InterestCohort
         page = await browser.newPage()
         await page.goto(url)
         screenshot_buffer = BytesIO()
