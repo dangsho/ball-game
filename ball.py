@@ -41,10 +41,10 @@ bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
-@flask_app.before_request
-async def set_permissions_policy():
-    """تنظیم هدر Permissions-Policy برای تمامی درخواست‌ها"""
-    response = await flask_app.make_response()
+# افزودن هدر Permissions-Policy
+@flask_app.after_request
+async def set_permissions_policy(response):
+    """افزودن هدر Permissions-Policy به تمامی پاسخ‌ها"""
     response.headers["Permissions-Policy"] = "interest-cohort=()"
     return response
 
