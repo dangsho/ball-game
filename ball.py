@@ -33,6 +33,11 @@ TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 DATABASE = 'game_bot.db'
 GAME_URL = "https://dangsho.github.io/ball-game/"
 
+# بررسی مقدار GAME_URL
+if not GAME_URL:
+    logger.critical("GAME_URL is not set or is empty.")
+    raise ValueError("GAME_URL must be a valid URL.")
+
 if not TOKEN:
     logger.critical("TOKEN is not set. Please set the token as an environment variable.")
     raise ValueError("TOKEN is not set.")
@@ -63,6 +68,10 @@ async def start(update: Update, context):
         await update.message.reply_text("متأسفیم، مشکلی پیش آمده است.")
 
 async def capture_screenshot_to_memory(url):
+    """گرفتن اسکرین‌شات از یک URL"""
+    if not url:
+        logger.error("Invalid URL: URL is None or empty.")
+        return None
     try:
         browser = await launch(args=["--disable-features=InterestCohort"])  # تنظیم InterestCohort
         page = await browser.newPage()
