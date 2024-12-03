@@ -68,6 +68,8 @@ async def inline_query(update: Update, context):
             f"📅 تاریخ قمری:\n{hijri_date}"
         )
 
+        logging.debug(f"Generated message: {message}")
+
         # ساختن نتیجه اینلاین
         results = [
             InlineQueryResultArticle(
@@ -77,7 +79,8 @@ async def inline_query(update: Update, context):
             )
         ]
 
-        await update.inline_query.answer(results)
+        # ارسال پاسخ به اینلاین کوئری با غیرفعال کردن کش
+        await update.inline_query.answer(results, cache_time=0)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
 
@@ -110,8 +113,18 @@ async def set_webhook():
         logging.info(f"Webhook set to: {webhook_url}")
 
 async def check_webhook():
-    response = requests.get(f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo")
-    logging.info("Webhook info: %s", response.json())
+    try:
+        # درخواست اطلاعات وبهوک
+        response = requests.get(f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo")
+        response_data = response.json()
+
+        if response.status_code == 200 and response_data.get("ok"):
+            logging.info("Webhook is set correctly: %s", response_data)
+        else:
+            logging.error("Failed to retrieve webhook info. Response: %s", response_data)
+            raise ValueError(f"Webhook check failed: {response_data.get('description')}")
+    except Exception as e:
+        logging.error(f"Error while checking webhook: {e}")
 
 async def main():
     conn = sqlite3.connect(DATABASE)
