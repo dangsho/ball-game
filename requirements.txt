@@ -1,8 +1,7 @@
-python-telegram-bot==20.3
-jdatetime==3.6.4
-werkzeug==2.0.3
-requests==2.31.0
-quart==0.18.3
-convertdate==2.4.0
-requests==2.31.0
-asyncio==3.4.3
+python-telegram-bot
+jdatetime
+werkzeug
+requests
+quart
+convertdate
+asyncio
