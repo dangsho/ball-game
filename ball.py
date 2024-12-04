@@ -219,3 +219,10 @@ async def main():
     await check_webhook()
 
     await application.initialize()
+    asyncio.create_task(application.start())
+
+    port = int(os.getenv('PORT', 5000))
+    await flask_app.run_task(host="0.0.0.0", port=port)
+
+if name == 'main':
+    asyncio.run(main())
