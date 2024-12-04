@@ -39,6 +39,15 @@ flask_app = Quart(__name__)
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
+async def get_user_chat_id(update: Update, context):
+    """ارسال chat_id به کاربر برای تست"""
+    try:
+        chat_id = update.message.chat.id
+        await update.message.reply_text(f"Your Chat ID: {chat_id}")
+    except Exception as e:
+        logging.error(f"Error fetching chat ID: {e}")
+        application.add_handler(CommandHandler("getid", get_user_chat_id))
+        
 async def get_admin_chat_id():
     """خواندن یا پیدا کردن chat_id مدیر"""
     try:
