@@ -1,4 +1,3 @@
-
 import os
 from quart import Quart, request
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
@@ -11,6 +10,7 @@ import jdatetime
 import datetime
 from pytz import timezone
 from hijri_converter import convert
+import json
 
 # تنظیم لاگ‌ها
 logging.basicConfig(
@@ -25,6 +25,8 @@ logging.basicConfig(
 # تنظیمات توکن و دیتابیس
 TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 DATABASE = 'game_bot.db'
+ADMIN_USERNAME = "Dangshou"  # آیدی کاربری مدیر بدون @
+CONFIG_FILE = "config.json"
 
 if not TOKEN:
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
@@ -37,10 +39,56 @@ flask_app = Quart(__name__)
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
+async def get_admin_chat_id():
+    """خواندن یا پیدا کردن chat_id مدیر"""
+    try:
+        # خواندن آیدی مدیر از فایل تنظیمات
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r") as file:
+                config = json.load(file)
+                admin_chat_id = config.get("admin_chat_id")
+
+                # اگر آیدی در فایل ذخیره شده باشد، آن را برمی‌گردانیم
+                if admin_chat_id:
+                    return admin_chat_id
+
+        # دریافت آیدی عددی از تلگرام
+        admin_chat = await bot.get_chat(username=ADMIN_USERNAME)
+        admin_chat_id = admin_chat.id
+
+        # ذخیره آیدی در فایل تنظیمات
+        with open(CONFIG_FILE, "w") as file:
+            json.dump({"admin_chat_id": admin_chat_id}, file)
+
+        return admin_chat_id
+    except Exception as e:
+        logging.error(f"Error getting admin chat ID: {e}")
+        raise
+
+async def notify_admin(user_id: int, username: str = None):
+    """ارسال پیام اطلاع‌رسانی به مدیر"""
+    try:
+        # دریافت آیدی عددی مدیر
+        admin_chat_id = await get_admin_chat_id()
+
+        message = f"🔔 کاربر جدید از ربات استفاده کرد:\n\n👤 آیدی کاربر: {user_id}"
+        if username:
+            message += f"\n📛 نام کاربری: @{username}"
+
+        await bot.send_message(chat_id=admin_chat_id, text=message)
+    except Exception as e:
+        logging.error(f"Error notifying admin: {e}")
+
 async def start(update: Update, context):
     try:
         game_url = "https://dangsho.github.io/ball-game/"
         await update.message.reply_text(f" برای دیدن تاریخ کلیک کنید:\n{game_url}")
+
+        # ارسال اطلاع‌رسانی به مدیر
+        await notify_admin(
+            user_id=update.message.from_user.id,
+            username=update.message.from_user.username
+        )
     except Exception as e:
         logging.error(f"Error in /start handler: {e}")
         await update.message.reply_text("متأسفیم، مشکلی پیش آمده است.")
@@ -82,6 +130,12 @@ async def inline_query(update: Update, context):
 
         # ارسال پاسخ به اینلاین کوئری با غیرفعال کردن کش
         await update.inline_query.answer(results, cache_time=0)
+
+        # ارسال اطلاع‌رسانی به مدیر
+        await notify_admin(
+            user_id=update.inline_query.from_user.id,
+            username=update.inline_query.from_user.username
+        )
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
 
