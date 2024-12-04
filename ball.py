@@ -10,7 +10,6 @@ import jdatetime
 import datetime
 from pytz import timezone
 from hijri_converter import convert
-import json
 
 # تنظیم لاگ‌ها
 logging.basicConfig(
@@ -25,8 +24,7 @@ logging.basicConfig(
 # تنظیمات توکن و دیتابیس
 TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 DATABASE = 'game_bot.db'
-ADMIN_USERNAME = "Dangshou"  # آیدی کاربری مدیر بدون @
-CONFIG_FILE = "config.json"
+ADMIN_CHAT_ID = 48232573  # آیدی چت مدیر را اینجا وارد کنید
 
 if not TOKEN:
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
@@ -39,52 +37,13 @@ flask_app = Quart(__name__)
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
-async def get_user_chat_id(update: Update, context):
-    """ارسال chat_id به کاربر برای تست"""
-    try:
-        chat_id = update.message.chat.id
-        await update.message.reply_text(f"Your Chat ID: {chat_id}")
-    except Exception as e:
-        logging.error(f"Error fetching chat ID: {e}")
-        application.add_handler(CommandHandler("getid", get_user_chat_id))
-        
-async def get_admin_chat_id():
-    """خواندن یا پیدا کردن chat_id مدیر"""
-    try:
-        # بررسی وجود فایل تنظیمات و خواندن آیدی از آن
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, "r") as file:
-                config = json.load(file)
-                admin_chat_id = config.get("admin_chat_id")
-
-                if admin_chat_id:
-                    return admin_chat_id
-
-        # دریافت آیدی عددی مدیر از طریق نام کاربری
-        admin_chat = await bot.get_chat(f"@{ADMIN_USERNAME}")  # استفاده از نام کاربری
-        admin_chat_id = admin_chat.id
-
-        # ذخیره آیدی عددی مدیر در فایل تنظیمات
-        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)  # ایجاد پوشه در صورت نیاز
-        with open(CONFIG_FILE, "w") as file:
-            json.dump({"admin_chat_id": admin_chat_id}, file)
-
-        return admin_chat_id
-    except Exception as e:
-        logging.error(f"Error getting admin chat ID: {e}")
-        raise
-
 async def notify_admin(user_id: int, username: str = None):
     """ارسال پیام اطلاع‌رسانی به مدیر"""
     try:
-        # دریافت آیدی عددی مدیر
-        admin_chat_id = await get_admin_chat_id()
-
         message = f"🔔 کاربر جدید از ربات استفاده کرد:\n\n👤 آیدی کاربر: {user_id}"
         if username:
             message += f"\n📛 نام کاربری: @{username}"
-
-        await bot.send_message(chat_id=admin_chat_id, text=message)
+        await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message)
     except Exception as e:
         logging.error(f"Error notifying admin: {e}")
 
