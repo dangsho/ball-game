@@ -1,6 +1,6 @@
 import os
 from quart import Quart, request
-from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultDocument
+from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Application, CommandHandler, InlineQueryHandler
 import sqlite3
 import requests
@@ -61,21 +61,23 @@ async def start(update: Update, context):
         logging.error(f"Error in /start handler: {e}")
         await update.message.reply_text("متأسفیم، مشکلی پیش آمده است.")
 
-
-
 async def inline_query(update: Update, context):
     try:
-        # لینک بازی
-        game_url = "https://dangsho.github.io/ball-game/"
-
-        # تاریخ و زمان برای گزینه دیگر
+        # زمان به وقت تهران
         tehran_tz = timezone("Asia/Tehran")
         tehran_time = datetime.datetime.now(tehran_tz)
+
+        # تاریخ شمسی
         jalali_date = jdatetime.datetime.fromgregorian(datetime=tehran_time)
+
+        # تاریخ میلادی
         gregorian_date = tehran_time.strftime("%Y-%m-%d")
+
+        # تاریخ قمری
         islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
+        # ساختن متن پیام
         message = (
             f'@dangsho_bot\n\n'
             f"⏰ تهران:\n{tehran_time.strftime('%H:%M:%S')}\n\n"
@@ -84,25 +86,37 @@ async def inline_query(update: Update, context):
             f"📅 تاریخ قمری:\n{hijri_date}"
         )
 
+        logging.debug(f"Generated message: {message}")
+
+        # لینک بازی
+        game_url = "https://dangsho.github.io/ball-game/"
+
         # ساختن نتایج اینلاین
         results = [
-            InlineQueryResultDocument(
+            InlineQueryResultArticle(
                 id="1",
                 title="🎮 باز کردن لینک بازی",
-                document_url=game_url,
-                mime_type="text/html",
-                description="باز کردن مستقیم لینک بازی"
+                input_message_content=InputTextMessageContent("🎮 روی لینک کلیک کنید تا بازی باز شود."),
+                url=game_url,
+                description="باز کردن لینک بازی به صورت مستقیم",
+                hide_url= True  # لینک نمایش داده می‌شود
             ),
             InlineQueryResultArticle(
                 id="2",
-                title="⏰ ارسال به چت",
+                title="⏰ ارسال لینک به چت",
                 input_message_content=InputTextMessageContent(message),
                 description="ارسال تاریخ و زمان به چت"
             )
         ]
 
-        # ارسال پاسخ اینلاین
+        # ارسال پاسخ به اینلاین کوئری با غیرفعال کردن کش
         await update.inline_query.answer(results, cache_time=0)
+
+        # ارسال اطلاع‌رسانی به مدیر
+        await notify_admin(
+            user_id=update.inline_query.from_user.id,
+            username=update.inline_query.from_user.username
+        )
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
 
