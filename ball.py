@@ -31,42 +31,7 @@ if not TOKEN:
 
 bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
-flask_app = Quart(__name__)
-
-# تابع برای دریافت قیمت ارزهای دیجیتال
-def get_crypto_prices():
-    try:
-        # دریافت قیمت ارزهای دیجیتال به دلار از CoinGecko
-        response = requests.get(
-            "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,notecoin&vs_currencies=usd"
-        )
-        if response.status_code == 200:
-            data = response.json()
-            bitcoin_price = data.get("bitcoin", {}).get("usd", "ناموجود")
-            ethereum_price = data.get("ethereum", {}).get("usd", "ناموجود")
-            notecoin_price = data.get("notecoin", {}).get("usd", "ناموجود")
-        else:
-            logging.error(f"Failed to fetch crypto prices: {response.text}")
-            bitcoin_price, ethereum_price, notecoin_price = "ناموجود", "ناموجود", "ناموجود"
-    except Exception as e:
-        logging.error(f"Error fetching crypto prices: {e}")
-        bitcoin_price, ethereum_price, notecoin_price = "ناموجود", "ناموجود", "ناموجود"
-
-    # دریافت قیمت تتر به تومان از نوبیتکس
-    try:
-        tether_response = requests.get("https://api.nobitex.ir/market/stats")
-        if tether_response.status_code == 200:
-            tether_data = tether_response.json()
-            tether_price_toman = tether_data["stats"]["usdt-irt"]["last"]
-        else:
-            logging.error(f"Failed to fetch Tether price from Nobitex: {tether_response.text}")
-            tether_price_toman = "ناموجود"
-    except Exception as e:
-        logging.error(f"Error fetching Tether price from Nobitex: {e}")
-        tether_price_toman = "ناموجود"
-
-    return bitcoin_price, ethereum_price, notecoin_price, tether_price_toman
-
+flask_app = Quart(name)
 
 @flask_app.route('/')
 async def home():
@@ -96,6 +61,37 @@ async def start(update: Update, context):
         logging.error(f"Error in /start handler: {e}")
         await update.message.reply_text("متأسفیم، مشکلی پیش آمده است.")
 
+def get_crypto_price_from_coingecko(crypto_name):
+    """دریافت قیمت ارز دیجیتال از کوین‌گکو"""
+    try:
+        url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_name}&vs_currencies=usd"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get(crypto_name, {}).get("usd", "ناموجود")
+        else:
+            logging.error(f"Failed to fetch price from CoinGecko: {response.text}")
+            return "ناموجود"
+    except Exception as e:
+        logging.error(f"Error fetching price from CoinGecko: {e}")
+        return "ناموجود"
+
+def get_crypto_price_from_nobitex(crypto_name):
+    """دریافت قیمت ارز دیجیتال از نوبیتکس"""
+    try:
+        url = "https://api.nobitex.ir/market/stats"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json().get("stats", {})
+            market_key = f"{crypto_name}-irt"
+            return data.get(market_key, {}).get("last", "ناموجود")
+        else:
+            logging.error(f"Failed to fetch price from Nobitex: {response.text}")
+            return "ناموجود"
+    except Exception as e:
+        logging.error(f"Error fetching price from Nobitex: {e}")
+        return "ناموجود"
+
 async def inline_query(update: Update, context):
     try:
         # زمان به وقت تهران
@@ -113,9 +109,12 @@ async def inline_query(update: Update, context):
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
         # دریافت قیمت ارزهای دیجیتال
-        bitcoin_price, ethereum_price, notecoin_price, tether_price_toman = get_crypto_prices()
+        bitcoin_price = get_crypto_price_from_coingecko('bitcoin')
+        ethereum_price = get_crypto_price_from_coingecko('ethereum')
+        notecoin_price = "ناموجود"  # اینجا میتوانید تابع مشابهی برای نات‌کوین اضافه کنید
+        tether_price_toman = get_crypto_price_from_nobitex('usdt')
 
-        # ساختن متن پیام
+        # ساختن متن پیام تاریخ و قیمت ثابت
         message = (
             f'@dangsho_bot\n\n'
             f"⏰ تهران:\n{tehran_time.strftime('%H:%M:%S')}\n\n"
@@ -129,8 +128,6 @@ async def inline_query(update: Update, context):
             f"💵 تتر: {tether_price_toman:,} تومان"
         )
 
-        logging.debug(f"Generated message: {message}")
-
         # لینک بازی
         game_url = "https://dangsho.github.io/ball-game/"
 
@@ -138,26 +135,66 @@ async def inline_query(update: Update, context):
         results = [
             InlineQueryResultArticle(
                 id="1",
-                title="🎮 باز کردن لینک ",
+                title="🎮 باز کردن لینک",
                 input_message_content=InputTextMessageContent(f"تاریخ  را از این لینک باز کنید:\n{game_url}"),
-                description=" ارسال لینک  ⏰"
+                description="ارسال لینک ⏰"
             ),
             InlineQueryResultArticle(
                 id="2",
                 title="⏰ ارسال تاریخ و قیمت‌ها به چت",
                 input_message_content=InputTextMessageContent(message),
-                description="ارسال تاریخ و قیمت‌ها به چت"
-            )
+                description="ارسال تاریخ و قیمت‌های ثابت به چت"
+            ),
+            InlineQueryResultArticle(
+                id="3",
+                title="💰 قیمت ارز از CoinGecko",
+                input_message_content=InputTextMessageContent(
+                    "🔍 برای دریافت قیمت ارز از کوین‌گکو، نام ارز را به انگلیسی وارد کنید."
+                ),
+                description="نام ارز موردنظر را وارد کنید."
+            ),
+            InlineQueryResultArticle(
+                id="4",
+                title="💵 قیمت ارز از Nobitex",
+                input_message_content=InputTextMessageContent(
+                    "🔍 برای دریافت قیمت ارز از نوبیتکس، نام ارز را به انگلیسی وارد کنید (مانند btc یا eth)."
+                ),
+                description="نام ارز موردنظر را وارد کنید."
+            ),
         ]
+
+        # پردازش متن ورودی کاربر برای قیمت ارزها
+        user_query = update.inline_query.query.lower().strip()
+        if user_query:
+            # بررسی و دریافت قیمت ارز از کوین‌گکو
+            coingecko_price = get_crypto_price_from_coingecko(user_query)
+            nobitex_price = get_crypto_price_from_nobitex(user_query)
+
+            extra_results = [
+                InlineQueryResultArticle(
+                    id="coingecko",
+                    title=f"💰 {user_query.upper()} در CoinGecko",
+                    input_message_content=InputTextMessageContent(
+                        f"💰 قیمت {user_query.upper()} به دلار: ${coingecko_price}"
+                    ),
+                    description=f"قیمت {user_query.upper()} به دلار"
+                ),
+                InlineQueryResultArticle(
+                    id="nobitex",
+                    title=f"💵 {user_query.upper()} در Nobitex",
+                    input_message_content=InputTextMessageContent(
+                        f"💵 قیمت {user_query.upper()} به تومان: {nobitex_price:,} تومان"
+                    ),
+                    description=f"قیمت {user_query.upper()} به تومان"
+                ),
+            ]
+
+            # اضافه کردن نتایج جدید به پاسخ اینلاین
+            results.extend(extra_results)
 
         # ارسال پاسخ به اینلاین کوئری با غیرفعال کردن کش
         await update.inline_query.answer(results, cache_time=0)
 
-        # ارسال اطلاع‌رسانی به مدیر
-        await notify_admin(
-            user_id=update.inline_query.from_user.id,
-            username=update.inline_query.from_user.username
-        )
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
 
@@ -224,5 +261,5 @@ async def main():
     port = int(os.getenv('PORT', 5000))
     await flask_app.run_task(host="0.0.0.0", port=port)
 
-if name == 'main':
+if __name__ == '__main__':
     asyncio.run(main())
