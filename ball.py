@@ -96,8 +96,10 @@ async def inline_query(update: Update, context):
             InlineQueryResultArticle(
                 id="1",
                 title="🎮 باز کردن لینک بازی",
-                input_message_content=InputTextMessageContent(f"🎮 بازی را از این لینک باز کنید:\n{game_url}"),
-                description="ارسال لینک بازی"
+                input_message_content=InputTextMessageContent("🎮 روی لینک کلیک کنید تا بازی باز شود."),
+                url=game_url,
+                description="باز کردن لینک بازی به صورت مستقیم",
+                hide_url= True  # لینک نمایش داده می‌شود
             ),
             InlineQueryResultArticle(
                 id="2",
