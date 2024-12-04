@@ -92,22 +92,20 @@ async def inline_query(update: Update, context):
         game_url = "https://dangsho.github.io/ball-game/"
 
         # ساختن نتایج اینلاین
-        
-        InlineQueryResultArticle(
-                id="1",
-                title="🎮 باز کردن لینک ",
-                input_message_content=InputTextMessageContent(f"🎮 بازی را از این لینک باز کنید:\n{game_url}"),
-                description=" ارسال لینک بازی ⏰"
-            )
-        ]
-        
         results = [
+            InlineQueryResultArticle(
+                id="1",
+                title="🎮 باز کردن لینک بازی",
+                input_message_content=InputTextMessageContent(f"🎮 بازی را از این لینک باز کنید:\n{game_url}"),
+                description="ارسال لینک بازی"
+            ),
             InlineQueryResultArticle(
                 id="2",
                 title="⏰ ارسال به چت",
-                input_message_content=InputTextMessageContent(message)
-            ),
-            
+                input_message_content=InputTextMessageContent(message),
+                description="ارسال تاریخ و زمان به چت"
+            )
+        ]
 
         # ارسال پاسخ به اینلاین کوئری با غیرفعال کردن کش
         await update.inline_query.answer(results, cache_time=0)
