@@ -79,6 +79,7 @@ async def inline_query(update: Update, context):
 
         # ساختن متن پیام
         message = (
+            f'@dangsho_bot'
             f"⏰ زمان فعلی به وقت تهران:\n{tehran_time.strftime('%H:%M:%S')}\n\n"
             f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n\n"
             f"📅 تاریخ میلادی:\n{gregorian_date}\n\n"
