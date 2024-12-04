@@ -31,7 +31,7 @@ if not TOKEN:
 
 bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
-flask_app = Quart(name)
+flask_app = Quart(__name__)
 
 @flask_app.route('/')
 async def home():
