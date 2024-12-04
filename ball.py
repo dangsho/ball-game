@@ -1,3 +1,4 @@
+
 import os
 from quart import Quart, request
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
@@ -69,12 +70,15 @@ def get_crypto_price_from_coingecko(crypto_name):
         if response.status_code == 200:
             data = response.json()
             return data.get(crypto_name, {}).get("usd", "ناموجود")
+        elif response.status_code == 429:
+            logging.error("Rate limit exceeded for CoinGecko API. Try again later.")
+            return "بیش از حد مجاز"
         else:
-            logging.error(f"Failed to fetch price from CoinGecko: {response.text}")
+            logging.error(f"Failed to fetch price from CoinGecko: {response.status_code} - {response.text}")
             return "ناموجود"
     except Exception as e:
         logging.error(f"Error fetching price from CoinGecko: {e}")
-        return "ناموجود"
+        return "خطا"
 
 def get_crypto_price_from_nobitex(crypto_name):
     """دریافت قیمت ارز دیجیتال از نوبیتکس"""
@@ -85,12 +89,15 @@ def get_crypto_price_from_nobitex(crypto_name):
             data = response.json().get("stats", {})
             market_key = f"{crypto_name}-irt"
             return data.get(market_key, {}).get("last", "ناموجود")
+        elif response.status_code == 429:
+            logging.error("Rate limit exceeded for Nobitex API. Try again later.")
+            return "بیش از حد مجاز"
         else:
-            logging.error(f"Failed to fetch price from Nobitex: {response.text}")
+            logging.error(f"Failed to fetch price from Nobitex: {response.status_code} - {response.text}")
             return "ناموجود"
     except Exception as e:
         logging.error(f"Error fetching price from Nobitex: {e}")
-        return "ناموجود"
+        return "خطا"
 
 async def inline_query(update: Update, context):
     try:
@@ -111,7 +118,6 @@ async def inline_query(update: Update, context):
         # دریافت قیمت ارزهای دیجیتال
         bitcoin_price = get_crypto_price_from_coingecko('bitcoin')
         ethereum_price = get_crypto_price_from_coingecko('ethereum')
-        notecoin_price = "ناموجود"  # اینجا میتوانید تابع مشابهی برای نات‌کوین اضافه کنید
         tether_price_toman = get_crypto_price_from_nobitex('usdt')
 
         # ساختن متن پیام تاریخ و قیمت ثابت
@@ -124,7 +130,6 @@ async def inline_query(update: Update, context):
             f"💰 قیمت ارزهای دیجیتال:\n"
             f"₿ بیت‌کوین: ${bitcoin_price}\n"
             f"Ξ اتریوم: ${ethereum_price}\n"
-            f"💲 نات‌کوین: ${notecoin_price}\n"
             f"💵 تتر: {tether_price_toman:,} تومان"
         )
 
@@ -143,7 +148,7 @@ async def inline_query(update: Update, context):
                 id="2",
                 title="⏰ ارسال تاریخ و قیمت‌ها به چت",
                 input_message_content=InputTextMessageContent(message),
-                description="ارسال تاریخ و قیمت‌های ثابت به چت"
+                description="ارسال تاریخ و قیمت‌ ارزها به چت"
             ),
             InlineQueryResultArticle(
                 id="3",
@@ -162,7 +167,11 @@ async def inline_query(update: Update, context):
                 description="نام ارز موردنظر را وارد کنید."
             ),
         ]
+        await update.inline_query.answer(results, cache_time=0)
 
+    except Exception as e:
+        logging.error(f"Error in inline query handler: {e}")
+        
         # پردازش متن ورودی کاربر برای قیمت ارزها
         user_query = update.inline_query.query.lower().strip()
         if user_query:
@@ -252,7 +261,7 @@ async def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(InlineQueryHandler(inline_query))
 
-    await set_webhook()
+     await set_webhook()
     await check_webhook()
 
     await application.initialize()
