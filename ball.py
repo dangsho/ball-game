@@ -42,21 +42,21 @@ async def home():
 async def get_admin_chat_id():
     """خواندن یا پیدا کردن chat_id مدیر"""
     try:
-        # خواندن آیدی مدیر از فایل تنظیمات
+        # بررسی وجود فایل تنظیمات و خواندن آیدی از آن
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE, "r") as file:
                 config = json.load(file)
                 admin_chat_id = config.get("admin_chat_id")
 
-                # اگر آیدی در فایل ذخیره شده باشد، آن را برمی‌گردانیم
                 if admin_chat_id:
                     return admin_chat_id
 
-        # دریافت آیدی عددی از تلگرام
-        admin_chat = await bot.get_chat(username=ADMIN_USERNAME)
+        # دریافت آیدی عددی مدیر از طریق نام کاربری
+        admin_chat = await bot.get_chat(f"@{ADMIN_USERNAME}")  # استفاده از نام کاربری
         admin_chat_id = admin_chat.id
 
-        # ذخیره آیدی در فایل تنظیمات
+        # ذخیره آیدی عددی مدیر در فایل تنظیمات
+        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)  # ایجاد پوشه در صورت نیاز
         with open(CONFIG_FILE, "w") as file:
             json.dump({"admin_chat_id": admin_chat_id}, file)
 
