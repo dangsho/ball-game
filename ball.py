@@ -33,6 +33,41 @@ bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
+# تابع برای دریافت قیمت ارزهای دیجیتال
+def get_crypto_prices():
+    try:
+        # دریافت قیمت ارزهای دیجیتال به دلار از CoinGecko
+        response = requests.get(
+            "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,notecoin&vs_currencies=usd"
+        )
+        if response.status_code == 200:
+            data = response.json()
+            bitcoin_price = data.get("bitcoin", {}).get("usd", "ناموجود")
+            ethereum_price = data.get("ethereum", {}).get("usd", "ناموجود")
+            notecoin_price = data.get("notecoin", {}).get("usd", "ناموجود")
+        else:
+            logging.error(f"Failed to fetch crypto prices: {response.text}")
+            bitcoin_price, ethereum_price, notecoin_price = "ناموجود", "ناموجود", "ناموجود"
+    except Exception as e:
+        logging.error(f"Error fetching crypto prices: {e}")
+        bitcoin_price, ethereum_price, notecoin_price = "ناموجود", "ناموجود", "ناموجود"
+
+    # دریافت قیمت تتر به تومان از نوبیتکس
+    try:
+        tether_response = requests.get("https://api.nobitex.ir/market/stats")
+        if tether_response.status_code == 200:
+            tether_data = tether_response.json()
+            tether_price_toman = tether_data["stats"]["usdt-irt"]["last"]
+        else:
+            logging.error(f"Failed to fetch Tether price from Nobitex: {tether_response.text}")
+            tether_price_toman = "ناموجود"
+    except Exception as e:
+        logging.error(f"Error fetching Tether price from Nobitex: {e}")
+        tether_price_toman = "ناموجود"
+
+    return bitcoin_price, ethereum_price, notecoin_price, tether_price_toman
+
+
 @flask_app.route('/')
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
@@ -77,13 +112,21 @@ async def inline_query(update: Update, context):
         islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
+        # دریافت قیمت ارزهای دیجیتال
+        bitcoin_price, ethereum_price, notecoin_price, tether_price_toman = get_crypto_prices()
+
         # ساختن متن پیام
         message = (
             f'@dangsho_bot\n\n'
             f"⏰ تهران:\n{tehran_time.strftime('%H:%M:%S')}\n\n"
             f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n\n"
             f"📅 تاریخ میلادی:\n{gregorian_date}\n\n"
-            f"📅 تاریخ قمری:\n{hijri_date}"
+            f"📅 تاریخ قمری:\n{hijri_date}\n\n"
+            f"💰 قیمت ارزهای دیجیتال:\n"
+            f"₿ بیت‌کوین: ${bitcoin_price}\n"
+            f"Ξ اتریوم: ${ethereum_price}\n"
+            f"💲 نات‌کوین: ${notecoin_price}\n"
+            f"💵 تتر: {tether_price_toman:,} تومان"
         )
 
         logging.debug(f"Generated message: {message}")
@@ -94,17 +137,16 @@ async def inline_query(update: Update, context):
         # ساختن نتایج اینلاین
         results = [
             InlineQueryResultArticle(
-        id="1",
-        title="🎮 باز کردن لینک ",
-        input_message_content=InputTextMessageContent(f"تاریخ  را از این لینک باز کنید:\n{game_url}"),
-        description=" ارسال لینک  ⏰"
-    ),
-            
+                id="1",
+                title="🎮 باز کردن لینک ",
+                input_message_content=InputTextMessageContent(f"تاریخ  را از این لینک باز کنید:\n{game_url}"),
+                description=" ارسال لینک  ⏰"
+            ),
             InlineQueryResultArticle(
                 id="2",
-                title="⏰ ارسال تاریخ به چت",
+                title="⏰ ارسال تاریخ و قیمت‌ها به چت",
                 input_message_content=InputTextMessageContent(message),
-                description="ارسال تاریخ و زمان به چت"
+                description="ارسال تاریخ و قیمت‌ها به چت"
             )
         ]
 
@@ -177,10 +219,3 @@ async def main():
     await check_webhook()
 
     await application.initialize()
-    asyncio.create_task(application.start())
-
-    port = int(os.getenv('PORT', 5000))
-    await flask_app.run_task(host="0.0.0.0", port=port)
-
-if __name__ == '__main__':
-    asyncio.run(main())
