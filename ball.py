@@ -96,13 +96,13 @@ async def inline_query(update: Update, context):
             InlineQueryResultArticle(
         id="1",
         title="🎮 باز کردن لینک ",
-        input_message_content=InputTextMessageContent(f"🎮 بازی را از این لینک باز کنید:\n{game_url}"),
-        description=" ارسال لینک بازی ⏰"
+        input_message_content=InputTextMessageContent(f"تاریخ  را از این لینک باز کنید:\n{game_url}"),
+        description=" ارسال لینک  ⏰"
     ),
             
             InlineQueryResultArticle(
                 id="2",
-                title="⏰ ارسال لینک به چت",
+                title="⏰ ارسال تاریخ به چت",
                 input_message_content=InputTextMessageContent(message),
                 description="ارسال تاریخ و زمان به چت"
             )
