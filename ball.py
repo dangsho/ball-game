@@ -261,7 +261,7 @@ async def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(InlineQueryHandler(inline_query))
 
-     await set_webhook()
+    await set_webhook()
     await check_webhook()
 
     await application.initialize()
