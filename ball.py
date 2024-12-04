@@ -99,7 +99,7 @@ async def inline_query(update: Update, context):
                 input_message_content=InputTextMessageContent("🎮 روی لینک کلیک کنید تا بازی باز شود."),
                 url=game_url,
                 description="باز کردن لینک بازی به صورت مستقیم",
-                hide_url= True  # لینک نمایش داده می‌شود
+                hide_url= False  # لینک نمایش داده می‌شود
             ),
             InlineQueryResultArticle(
                 id="2",
