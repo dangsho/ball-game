@@ -135,22 +135,6 @@ import time  # برای اندازه‌گیری زمان پردازش
 
 async def inline_query(update: Update, context):
     try:
-        # ثبت زمان شروع پردازش
-        start_time = time.time()
-
-        # ارسال پاسخ سریع اولیه برای جلوگیری از خطای تأخیر
-        await update.inline_query.answer(
-            results=[
-                InlineQueryResultArticle(
-                    id="0",
-                    title="⏳ لطفاً منتظر بمانید...",
-                    input_message_content=InputTextMessageContent("در حال بارگذاری اطلاعات..."),
-                    description="در حال دریافت اطلاعات"
-                )
-            ],
-            cache_time=1,  # تنظیم کش موقت
-        )
-
         # تنظیمات زمان و تاریخ
         tehran_tz = timezone("Asia/Tehran")
         tehran_time = datetime.datetime.now(tehran_tz)
@@ -206,12 +190,8 @@ async def inline_query(update: Update, context):
             )
         ]
 
-        # ارسال پاسخ نهایی
+        # ارسال پاسخ اینلاین
         await update.inline_query.answer(results, cache_time=10)
-
-        # محاسبه و لاگ زمان پردازش
-        processing_time = time.time() - start_time
-        logging.debug(f"Inline query processed in {processing_time:.2f} seconds")
 
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
