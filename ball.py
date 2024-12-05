@@ -52,6 +52,18 @@ def fetch_available_crypto_symbols():
         logging.error(f"Error fetching crypto symbols: {e}")
         return []
 
+def fetch_nobitex_symbols():
+    """دریافت لیست نمادهای ارزهای دیجیتال از نوبیتکس"""
+    try:
+        url = "https://api.nobitex.ir/market/stats"
+        response = requests.get(url)
+        response.raise_for_status()  # چک کردن وضعیت درخواست
+        data = response.json().get("stats", {})
+        return [symbol.split('-')[0].upper() for symbol in data.keys()]
+    except Exception as e:
+        logging.error(f"Error fetching symbols from Nobitex: {e}")
+        return []
+
 async def notify_admin(user_id: int, username: str = None):
     """ارسال پیام اطلاع‌رسانی به مدیر"""
     try:
@@ -95,14 +107,14 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
         logging.error(f"Error fetching data from CoinMarketCap: {e}")
         return "خطا در دریافت اطلاعات"
 
-def get_usdt_to_irr_price(prls):
+def get_usdt_to_irr_price():
     """دریافت قیمت تتر به ریال ایران از نوبیتکس"""
     try:
         url = "https://api.nobitex.ir/market/stats"
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json().get("stats", {})
-            usdt_data = data.get(prls+"-rls", {})
+            usdt_data = data.get("usdt-rls", {})
             latest_price = usdt_data.get("latest")
             if latest_price:
                 return f"{int(float(latest_price)):,} ریال"
@@ -130,10 +142,10 @@ async def handle_crypto_price(update: Update, context):
 
         # دریافت قیمت از منابع
         cmc_price = get_crypto_price_from_coinmarketcap(crypto_name)
-        nobitex_price = get_usdt_to_irr_price(crypto_name.lower())
+        nobitex_price = get_usdt_to_irr_price()
 
         # بررسی صحت اطلاعات و ایجاد پیام پاسخ
-        if cmc_price == "خطا در دریافت اطلاعات" and "خطا" in nobitex_price:
+        if cmc_price == "خطا در دریافت اطلاعات" and "خطا" در nobitex_price:
             logging.debug(f"Failed to fetch prices for: {crypto_name}")
             return  # در صورت بروز خطا نیز پاسخی ارسال نمی‌شود
 
@@ -148,6 +160,59 @@ async def handle_crypto_price(update: Update, context):
     except Exception as e:
         logging.error(f"Error in handle_crypto_price: {e}")
 
+async def inline_query(update: Update, context):
+    try:
+        # مقداردهی اولیه results برای جلوگیری از خطای UnboundLocalError
+        results = []
+
+        # زمان به وقت تهران
+        tehran_tz = timezone("Asia/Tehran")
+        tehran_time = datetime.datetime.now(tehran_tz)
+
+        # تاریخ شمسی
+        jalali_date = jdatetime.datetime.fromgregorian(datetime=tehran_time)
+
+        # تاریخ میلادی
+        gregorian_date = tehran_time.strftime("%Y-%m-%d")
+
+        # تاریخ قمری
+        islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
+        hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
+
+        # دریافت قیمت ارزهای دیجیتال
+        bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
+        ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
+        tether_price_toman = get_usdt_to_irr_price()
+
+        # ساختن متن پیام تاریخ و قیمت ثابت
+        message = (
+            f'@dangsho_bot\n\n'
+            f"\n💰 قیمت ارزهای دیجیتال:\n"
+            f"₿ بیت‌کوین: ${bitcoin_price}\n"
+            f" اتریوم: ${ethereum_price}\n"
+            f"💵 تتر: {tether_price_toman}\n"
+            f"⏰:\n{tehran_time.strftime('%H:%M:%S')}\n"
+            f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n"
+            f"📅 تاریخ میلادی:\n
+            f"📅 تاریخ میلادی:\n{gregorian_date}\n"
+            f"📅 تاریخ قمری:\n{hijri_date}\n"
+        )
+
+        # ایجاد نتیجه برای پاسخ به اینلاین کوئری
+        results.append(
+            InlineQueryResultArticle(
+                id="1",
+                title="مشاهده تاریخ و قیمت‌ها",
+                input_message_content=InputTextMessageContent(message)
+            )
+        )
+
+        # ارسال نتایج به کاربر
+        await update.inline_query.answer(results)
+
+    except Exception as e:
+        logging.error(f"Error in inline_query: {e}")
+
 @flask_app.route('/webhook', methods=['POST'])
 async def webhook_update():
     if request.method == "POST":
@@ -155,10 +220,10 @@ async def webhook_update():
             data = await request.get_json()
             update = Update.de_json(data, bot)
             await application.update_queue.put(update)
-            return 'ok', 200
+            return "OK", 200
         except Exception as e:
-            logging.error(f"Error processing webhook: {e}")
-            return 'Bad Request', 400
+            logging.error(f"Error processing webhook update: {e}")
+            return "Error", 500
 
 async def set_webhook():
     public_url = os.getenv("RENDER_EXTERNAL_URL")
@@ -174,30 +239,36 @@ async def set_webhook():
         logging.error(f"Failed to set webhook: {set_webhook_response.text}")
         raise RuntimeError(f"Failed to set webhook: {set_webhook_response.text}")
     else:
-        logging.info(f"Webhook set to: {webhook_url}")
-
-async def main():
-    global AVAILABLE_CRYPTO_SYMBOLS
-    AVAILABLE_CRYPTO_SYMBOLS = fetch_available_crypto_symbols()  # دریافت لیست رمز ارزها
-
-    conn = sqlite3.connect(DATABASE)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS game_sessions
-                 (unique_id TEXT, user_id INTEGER, game_short_name TEXT, inline_message_id TEXT)''')
-    conn.commit()
-    conn.close()
-
-    await bot.initialize()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_crypto_price))
-
-    await set_webhook()
-
-    await application.initialize()
-    asyncio.create_task(application.start())
-
+    	logging.info(f"Webhook set to: {webhook_url}")
+    	
+async def run_quart_app():
+    """اجرای اپلیکیشن Quart به صورت غیرهمزمان"""
     port = int(os.getenv('PORT', 5000))
     await flask_app.run_task(host="0.0.0.0", port=port)
 
+async def run_telegram_bot():
+    """اجرای ربات تلگرام"""
+    # افزودن هندلرهای دستورات و پیام‌ها
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(InlineQueryHandler(inline_query))
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_crypto_price))
+
+    # تنظیم وب‌هوک
+    await set_webhook()
+
+    # اجرای ربات
+    await application.start()
+
 if __name__ == '__main__':
-    asyncio.run(main())
+    # دریافت لیست نمادهای معتبر رمز ارزها از کوین مارکت کپ و نوبیتکس
+    AVAILABLE_CRYPTO_SYMBOLS = fetch_available_crypto_symbols() + fetch_nobitex_symbols()
+    AVAILABLE_CRYPTO_SYMBOLS = list(set(AVAILABLE_CRYPTO_SYMBOLS))  # حذف موارد تکراری
+
+    # اجرای اپلیکیشن Quart و ربات تلگرام به صورت همزمان
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(
+        asyncio.gather(
+            run_quart_app(),
+            run_telegram_bot()
+        )
+    )
