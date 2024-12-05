@@ -120,7 +120,7 @@ async def inline_query(update: Update, context):
         # دریافت قیمت ارزهای دیجیتال
         bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
         ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
-        tether_price_toman = get_crypto_price_from_nobitex('usdt-rls')
+        tether_price_toman = get_crypto_price_from_nobitex('USDT-RLS')
 
         # ساختن متن پیام تاریخ و قیمت ثابت
         message = (
@@ -132,7 +132,7 @@ async def inline_query(update: Update, context):
             f"💰 قیمت ارزهای دیجیتال:\n"
             f"₿ بیت‌کوین: ${bitcoin_price}\n"
             f"Ξ اتریوم: ${ethereum_price}\n"
-            f"💵 تتر: {tether_price_toman} تومان"
+            f"💵 تتر: {tether_price_toman} ریال"
         )
 
         # لینک بازی
