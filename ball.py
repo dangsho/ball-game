@@ -61,16 +61,23 @@ async def start(update: Update, context):
         logging.error(f"Error in /start handler: {e}")
         await update.message.reply_text("متأسفیم، مشکلی پیش آمده است.")
 
-def get_crypto_price_from_coingecko(crypto_name):
-    """دریافت قیمت ارز دیجیتال از کوین‌گکو"""
+def get_crypto_price_from_coinmarketcap(crypto_symbol):
+    """دریافت قیمت ارز دیجیتال از CoinMarketCap"""
     try:
-        url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_name}&vs_currencies=usd"
-        response = requests.get(url)
+        url = f"https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+        headers = {
+            "X-CMC_PRO_API_KEY": "8baeefe8-4a9f-4947-8a9d-7f8ea40d91d3",
+            "Accept": "application/json",
+        }
+        params = {"symbol": crypto_symbol, "convert": "USD"}
+        response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        price = data["data"][crypto_symbol]["quote"]["USD"]["price"]
+        return f"{price:,.2f}"
     except requests.RequestException as e:
-        print(f"Error fetching data: {e}")
-        return {}
+        logging.error(f"Error fetching data from CoinMarketCap: {e}")
+        return "خطا در دریافت اطلاعات"
 
 def get_crypto_price_from_nobitex(crypto_name):
     """دریافت قیمت ارز دیجیتال از نوبیتکس"""
@@ -93,9 +100,9 @@ def get_crypto_price_from_nobitex(crypto_name):
 
 async def inline_query(update: Update, context):
     try:
-                # مقداردهی اولیه results برای جلوگیری از خطای UnboundLocalError
+        # مقداردهی اولیه results برای جلوگیری از خطای UnboundLocalError
         results = []
-        
+
         # زمان به وقت تهران
         tehran_tz = timezone("Asia/Tehran")
         tehran_time = datetime.datetime.now(tehran_tz)
@@ -111,8 +118,8 @@ async def inline_query(update: Update, context):
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
         # دریافت قیمت ارزهای دیجیتال
-        bitcoin_price = get_crypto_price_from_coingecko('bitcoin')
-        ethereum_price = get_crypto_price_from_coingecko('ethereum')
+        bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
+        ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
         tether_price_toman = get_crypto_price_from_nobitex('usdt-rls')
 
         # ساختن متن پیام تاریخ و قیمت ثابت
@@ -136,7 +143,7 @@ async def inline_query(update: Update, context):
             InlineQueryResultArticle(
                 id="1",
                 title="🎮 باز کردن لینک",
-                input_message_content=InputTextMessageContent(f"تاریخ  را از این لینک باز کنید:\n{game_url}"),
+                input_message_content=InputTextMessageContent(f"تاریخ را از این لینک باز کنید:\n{game_url}"),
                 description="ارسال لینک ⏰"
             ),
             InlineQueryResultArticle(
@@ -145,62 +152,7 @@ async def inline_query(update: Update, context):
                 input_message_content=InputTextMessageContent(message),
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             ),
-            InlineQueryResultArticle(
-                id="3",
-                title="💰 قیمت ارز از CoinGecko",
-                input_message_content=InputTextMessageContent(
-                    "🔍 برای دریافت قیمت ارز از کوین‌گکو، نام ارز را به انگلیسی وارد کنید."
-                ),
-                description="نام ارز موردنظر را وارد کنید."
-            ),
-            InlineQueryResultArticle(
-                id="4",
-                title="💵 قیمت ارز از Nobitex",
-                input_message_content=InputTextMessageContent(
-                    "🔍 برای دریافت قیمت ارز از نوبیتکس، نام ارز را به انگلیسی وارد کنید (مانند btc یا eth)."
-                ),
-                description="نام ارز موردنظر را وارد کنید."
-            ),
         ]
-        await update.inline_query.answer(results, cache_time=0)
-
-    except ValueError as ve:
-        logging.error(f"ValueError in inline query: {ve}")
-    except Exception as e:
-        logging.error(f"Error in inline query handler: {e}")
-        # در صورت وقوع خطا، نتایج خالی را ارسال کنید.
-        await update.inline_query.answer([], cache_time=0)
-
-        # پردازش متن ورودی کاربر برای قیمت ارزها
-        user_query = update.inline_query.query.lower().strip()
-        if user_query:
-            # بررسی و دریافت قیمت ارز از کوین‌گکو
-            coingecko_price = get_crypto_price_from_coingecko(user_query)
-            nobitex_price = get_crypto_price_from_nobitex(user_query)
-
-            extra_results = [
-                InlineQueryResultArticle(
-                    id="coingecko",
-                    title=f"💰 {user_query.upper()} در CoinGecko",
-                    input_message_content=InputTextMessageContent(
-                        f"💰 قیمت {user_query.upper()} به دلار: ${coingecko_price}"
-                    ),
-                    description=f"قیمت {user_query.upper()} به دلار"
-                ),
-                InlineQueryResultArticle(
-                    id="nobitex",
-                    title=f"💵 {user_query.upper()} در Nobitex",
-                    input_message_content=InputTextMessageContent(
-                        f"💵 قیمت {user_query.upper()} به تومان: {nobitex_price:,} تومان"
-                    ),
-                    description=f"قیمت {user_query.upper()} به تومان"
-                ),
-            ]
-
-            # اضافه کردن نتایج جدید به پاسخ اینلاین
-            results.extend(extra_results)
-
-        # ارسال پاسخ به اینلاین کوئری با غیرفعال کردن کش
         await update.inline_query.answer(results, cache_time=0)
 
     except Exception as e:
@@ -234,20 +186,6 @@ async def set_webhook():
     else:
         logging.info(f"Webhook set to: {webhook_url}")
 
-async def check_webhook():
-    try:
-        # درخواست اطلاعات وبهوک
-        response = requests.get(f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo")
-        response_data = response.json()
-
-        if response.status_code == 200 and response_data.get("ok"):
-            logging.info("Webhook is set correctly: %s", response_data)
-        else:
-            logging.error("Failed to retrieve webhook info. Response: %s", response_data)
-            raise ValueError(f"Webhook check failed: {response_data.get('description')}")
-    except Exception as e:
-        logging.error(f"Error while checking webhook: {e}")
-
 async def main():
     conn = sqlite3.connect(DATABASE)
     c = conn.cursor()
@@ -261,7 +199,6 @@ async def main():
     application.add_handler(InlineQueryHandler(inline_query))
 
     await set_webhook()
-    await check_webhook()
 
     await application.initialize()
     asyncio.create_task(application.start())
