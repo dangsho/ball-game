@@ -33,36 +33,9 @@ bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
-AVAILABLE_CRYPTO_SYMBOLS = []  # لیست نمادهای معتبر رمز ارز
-
 @flask_app.route('/')
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
-
-def fetch_available_crypto_symbols():
-    """دریافت لیست رمز ارزها از کوین مارکت کپ"""
-    try:
-        url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest"
-        headers = {"X-CMC_PRO_API_KEY": "8baeefe8-4a9f-4947-8a9d-7f8ea40d91d3"}  # کلید API کوین مارکت کپ
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        return [crypto["symbol"].upper() for crypto in data["data"]]
-    except Exception as e:
-        logging.error(f"Error fetching crypto symbols: {e}")
-        return []
-
-def fetch_nobitex_symbols():
-    """دریافت لیست نمادهای ارزهای دیجیتال از نوبیتکس"""
-    try:
-        url = "https://api.nobitex.ir/market/stats"
-        response = requests.get(url)
-        response.raise_for_status()  # چک کردن وضعیت درخواست
-        data = response.json().get("stats", {})
-        return [symbol.split('-')[0].upper() for symbol in data.keys()]
-    except Exception as e:
-        logging.error(f"Error fetching symbols from Nobitex: {e}")
-        return []
 
 async def notify_admin(user_id: int, username: str = None):
     """ارسال پیام اطلاع‌رسانی به مدیر"""
@@ -91,10 +64,9 @@ async def start(update: Update, context):
 def get_crypto_price_from_coinmarketcap(crypto_symbol):
     """دریافت قیمت ارز دیجیتال از CoinMarketCap"""
     try:
-        crypto_symbol = crypto_symbol.strip().upper()  # حذف فضاهای خالی و تبدیل به حروف بزرگ
         url = f"https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
         headers = {
-            "X-CMC_PRO_API_KEY": "8baeefe8-4a9f-4947-8a9d-7f8ea40d91d3",  # کلید API کوین مارکت کپ
+            "X-CMC_PRO_API_KEY": "8baeefe8-4a9f-4947-8a9d-7f8ea40d91d3",
             "Accept": "application/json",
         }
         params = {"symbol": crypto_symbol, "convert": "USD"}
@@ -110,16 +82,22 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
 def get_usdt_to_irr_price():
     """دریافت قیمت تتر به ریال ایران از نوبیتکس"""
     try:
+        # ارسال درخواست به API نوبیتکس
         url = "https://api.nobitex.ir/market/stats"
         response = requests.get(url)
+        
+        # بررسی موفقیت‌آمیز بودن درخواست
         if response.status_code == 200:
             data = response.json().get("stats", {})
+            
+            # استخراج قیمت تتر به ریال (USDT-IRR)
             usdt_data = data.get("usdt-rls", {})
             latest_price = usdt_data.get("latest")
             if latest_price:
                 return f"{int(float(latest_price)):,} ریال"
             else:
                 return "قیمت تتر به ریال موجود نیست."
+        
         elif response.status_code == 429:
             logging.error("Rate limit exceeded for Nobitex API. Try again later.")
             return "محدودیت درخواست‌ها"
@@ -130,6 +108,9 @@ def get_usdt_to_irr_price():
         logging.error(f"Error fetching data from Nobitex: {e}")
         return "خطای سیستم"
 
+# تعریف لیست ارزهای پشتیبانی‌شده
+AVAILABLE_CRYPTO_SYMBOLS = ['BTC', 'ETH', 'USDT']  # می‌توانید ارزهای بیشتری اضافه کنید.
+
 async def handle_crypto_price(update: Update, context):
     """هندلر برای دریافت پیام کاربر و ارسال قیمت رمز ارز در صورت معتبر بودن"""
     try:
@@ -137,7 +118,7 @@ async def handle_crypto_price(update: Update, context):
 
         # بررسی معتبر بودن نماد رمز ارز
         if crypto_name not in AVAILABLE_CRYPTO_SYMBOLS:
-            logging.debug(f"Ignoring invalid or unsupported crypto name: {crypto_name}")
+            logging.debug(f"Invalid or unsupported crypto name: {crypto_name}")
             return  # اگر نماد معتبر نبود، هیچ پاسخی ارسال نشود
 
         # دریافت قیمت از منابع
@@ -187,32 +168,40 @@ async def inline_query(update: Update, context):
         # ساختن متن پیام تاریخ و قیمت ثابت
         message = (
             f'@dangsho_bot\n\n'
+            
             f"\n💰 قیمت ارزهای دیجیتال:\n"
             f"₿ بیت‌کوین: ${bitcoin_price}\n"
             f" اتریوم: ${ethereum_price}\n"
             f"💵 تتر: {tether_price_toman}\n"
-            f"میجر: {major_price_toman}\n"
-            f"ایکس امپایر: {xempire_price_toman}\n"
+            
             f"⏰:\n{tehran_time.strftime('%H:%M:%S')}\n"
             f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n"
             f"📅 تاریخ میلادی:\n{gregorian_date}\n"
             f"📅 تاریخ قمری:\n{hijri_date}\n"
         )
 
-        # ایجاد نتیجه برای پاسخ به اینلاین کوئری
-        results.append(
+        # لینک بازی
+        game_url = "https://dangsho.github.io/ball-game/"
+
+        # ساختن نتایج اینلاین
+        results = [
             InlineQueryResultArticle(
                 id="1",
-                title="مشاهده تاریخ و قیمت‌ها",
-                input_message_content=InputTextMessageContent(message)
-            )
-        )
-
-        # ارسال نتایج به کاربر
-        await update.inline_query.answer(results)
+                title="🎮 باز کردن لینک",
+                input_message_content=InputTextMessageContent(f"تاریخ را از این لینک باز کنید:\n{game_url}"),
+                description="ارسال لینک ⏰"
+            ),
+            InlineQueryResultArticle(
+                id="2",
+                title="⏰ ارسال تاریخ و قیمت‌ها به چت",
+                input_message_content=InputTextMessageContent(message),
+                description="ارسال تاریخ و قیمت‌ ارزها به چت"
+            ),
+        ]
+        await update.inline_query.answer(results, cache_time=0)
 
     except Exception as e:
-        logging.error(f"Error in inline_query: {e}")
+        logging.error(f"Error in inline query handler: {e}")
 
 @flask_app.route('/webhook', methods=['POST'])
 async def webhook_update():
@@ -221,10 +210,10 @@ async def webhook_update():
             data = await request.get_json()
             update = Update.de_json(data, bot)
             await application.update_queue.put(update)
-            return "OK", 200
+            return 'ok', 200
         except Exception as e:
-            logging.error(f"Error processing webhook update: {e}")
-            return "Error", 500
+            logging.error(f"Error processing webhook: {e}")
+            return 'Bad Request', 400
 
 async def set_webhook():
     public_url = os.getenv("RENDER_EXTERNAL_URL")
@@ -240,36 +229,30 @@ async def set_webhook():
         logging.error(f"Failed to set webhook: {set_webhook_response.text}")
         raise RuntimeError(f"Failed to set webhook: {set_webhook_response.text}")
     else:
-    	logging.info(f"Webhook set to: {webhook_url}")
-    	
-async def run_quart_app():
-    """اجرای اپلیکیشن Quart به صورت غیرهمزمان"""
+        logging.info(f"Webhook set to: {webhook_url}")
+
+async def main():
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS game_sessions
+                 (unique_id TEXT, user_id INTEGER, game_short_name TEXT, inline_message_id TEXT)''')
+    conn.commit()
+    conn.close()
+
+    await bot.initialize()
+    
+    # افزودن هندلرهای مختلف
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(InlineQueryHandler(inline_query))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_crypto_price))  # هندلر پیام متنی
+
+    await set_webhook()
+
+    await application.initialize()
+    asyncio.create_task(application.start())
+
     port = int(os.getenv('PORT', 5000))
     await flask_app.run_task(host="0.0.0.0", port=port)
 
-async def run_telegram_bot():
-    """اجرای ربات تلگرام"""
-    # افزودن هندلرهای دستورات و پیام‌ها
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(InlineQueryHandler(inline_query))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_crypto_price))
-
-    # تنظیم وب‌هوک
-    await set_webhook()
-
-    # اجرای ربات
-    await application.start()
-
 if __name__ == '__main__':
-    # دریافت لیست نمادهای معتبر رمز ارزها از کوین مارکت کپ و نوبیتکس
-    AVAILABLE_CRYPTO_SYMBOLS = fetch_available_crypto_symbols() + fetch_nobitex_symbols()
-    AVAILABLE_CRYPTO_SYMBOLS = list(set(AVAILABLE_CRYPTO_SYMBOLS))  # حذف موارد تکراری
-
-    # اجرای اپلیکیشن Quart و ربات تلگرام به صورت همزمان
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(
-        asyncio.gather(
-            run_quart_app(),
-            run_telegram_bot()
-        )
-    )
+    asyncio.run(main())
