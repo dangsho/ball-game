@@ -145,7 +145,7 @@ async def handle_crypto_price(update: Update, context):
         nobitex_price = get_usdt_to_irr_price()
 
         # بررسی صحت اطلاعات و ایجاد پیام پاسخ
-        if cmc_price == "خطا در دریافت اطلاعات" and "خطا" در nobitex_price:
+        if cmc_price == "خطا در دریافت اطلاعات" and "خطا" in nobitex_price:
             logging.debug(f"Failed to fetch prices for: {crypto_name}")
             return  # در صورت بروز خطا نیز پاسخی ارسال نمی‌شود
 
