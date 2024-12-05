@@ -133,8 +133,20 @@ async def get_crypto_price(update: Update, context):
 
 async def inline_query(update: Update, context):
     try:
-        results = []
+        # ارسال پاسخ اولیه سریع برای جلوگیری از خطای تأخیر
+        await update.inline_query.answer(
+            results=[
+                InlineQueryResultArticle(
+                    id="0",
+                    title="⏳ لطفاً منتظر بمانید...",
+                    input_message_content=InputTextMessageContent("در حال بارگذاری اطلاعات..."),
+                    description="در حال دریافت اطلاعات"
+                )
+            ],
+            cache_time=0,
+        )
 
+        # تنظیمات زمان و تاریخ
         tehran_tz = timezone("Asia/Tehran")
         tehran_time = datetime.datetime.now(tehran_tz)
 
@@ -144,6 +156,7 @@ async def inline_query(update: Update, context):
         islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
+        # دریافت قیمت‌ها
         bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
         ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
         tether_price_toman = get_usdt_to_irr_price('usdt')
@@ -166,6 +179,7 @@ async def inline_query(update: Update, context):
 
         game_url = "https://dangsho.github.io/ball-game/"
 
+        # ساختن گزینه‌های اینلاین
         results = [
             InlineQueryResultArticle(
                 id="1",
@@ -179,7 +193,14 @@ async def inline_query(update: Update, context):
                 input_message_content=InputTextMessageContent(message),
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             ),
+            InlineQueryResultArticle(
+                id="3",
+                title="💰 جستجوی قیمت رمز ارز",
+                input_message_content=InputTextMessageContent("برای جستجوی قیمت یک رمز ارز دستور زیر را ارسال کنید:\n/price <نام_رمز_ارز>"),
+                description="دریافت قیمت رمز ارز دلخواه"
+            )
         ]
+
         await update.inline_query.answer(results, cache_time=10)
 
     except Exception as e:
