@@ -82,15 +82,11 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
 def get_usdt_to_irr_price(prls):
     """دریافت قیمت تتر به ریال ایران از نوبیتکس"""
     try:
-        # ارسال درخواست به API نوبیتکس
         url = "https://api.nobitex.ir/market/stats"
         response = requests.get(url)
         
-        # بررسی موفقیت‌آمیز بودن درخواست
         if response.status_code == 200:
             data = response.json().get("stats", {})
-            
-            # استخراج قیمت تتر به ریال (USDT-IRR)
             usdt_data = data.get(prls+"-rls", {})
             latest_price = usdt_data.get("latest")
             if latest_price:
@@ -108,53 +104,87 @@ def get_usdt_to_irr_price(prls):
         logging.error(f"Error fetching data from Nobitex: {e}")
         return "خطای سیستم"
 
+async def get_crypto_price(update: Update, context):
+    """دریافت قیمت رمز ارز با استفاده از APIهای نوبیتکس و CoinMarketCap"""
+    try:
+        if len(context.args) == 0:
+            await update.message.reply_text("لطفاً نام رمز ارز مورد نظر را وارد کنید. مثال: /price BTC")
+            return
+
+        crypto_name = context.args[0].upper()
+
+        # قیمت از CoinMarketCap
+        cmc_price = get_crypto_price_from_coinmarketcap(crypto_name)
+
+        # قیمت از نوبیتکس (اگر ارز در نوبیتکس موجود باشد)
+        nobitex_price = get_usdt_to_irr_price(crypto_name.lower())
+
+        response_message = (
+            f"💰 قیمت {crypto_name}:\n"
+            f"- کوین مارکت کپ: ${cmc_price}\n"
+            f"- نوبیتکس: {nobitex_price}\n"
+        )
+
+        await update.message.reply_text(response_message)
+
+    except Exception as e:
+        logging.error(f"Error in /price command: {e}")
+        await update.message.reply_text("متأسفانه مشکلی پیش آمده است. لطفاً دوباره تلاش کنید.")
+
+import time  # برای اندازه‌گیری زمان پردازش
+
 async def inline_query(update: Update, context):
     try:
-        # مقداردهی اولیه results برای جلوگیری از خطای UnboundLocalError
-        results = []
+        # ثبت زمان شروع پردازش
+        start_time = time.time()
 
-        # زمان به وقت تهران
+        # ارسال پاسخ سریع اولیه برای جلوگیری از خطای تأخیر
+        await update.inline_query.answer(
+            results=[
+                InlineQueryResultArticle(
+                    id="0",
+                    title="⏳ لطفاً منتظر بمانید...",
+                    input_message_content=InputTextMessageContent("در حال بارگذاری اطلاعات..."),
+                    description="در حال دریافت اطلاعات"
+                )
+            ],
+            cache_time=1,  # تنظیم کش موقت
+        )
+
+        # تنظیمات زمان و تاریخ
         tehran_tz = timezone("Asia/Tehran")
         tehran_time = datetime.datetime.now(tehran_tz)
 
-        # تاریخ شمسی
         jalali_date = jdatetime.datetime.fromgregorian(datetime=tehran_time)
-
-        # تاریخ میلادی
         gregorian_date = tehran_time.strftime("%Y-%m-%d")
 
-        # تاریخ قمری
         islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
-        # دریافت قیمت ارزهای دیجیتال
+        # دریافت قیمت‌ها
         bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
         ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
         tether_price_toman = get_usdt_to_irr_price('usdt')
         major_price_toman = get_usdt_to_irr_price('major')
         xempire_price_toman = get_usdt_to_irr_price('x')
 
-        # ساختن متن پیام تاریخ و قیمت ثابت
         message = (
             f'@dangsho_bot\n\n'
-            
             f"\n💰 قیمت ارزهای دیجیتال:\n"
             f"₿ بیت‌کوین: ${bitcoin_price}\n"
             f" اتریوم: ${ethereum_price}\n"
             f"💵 تتر: {tether_price_toman}\n"
             f"میجر: {major_price_toman}\n"
             f"ایکس امپایر: {xempire_price_toman}\n"
-            
             f"⏰:\n{tehran_time.strftime('%H:%M:%S')}\n"
             f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n"
             f"📅 تاریخ میلادی:\n{gregorian_date}\n"
             f"📅 تاریخ قمری:\n{hijri_date}\n"
         )
 
-        # لینک بازی
         game_url = "https://dangsho.github.io/ball-game/"
 
-        # ساختن نتایج اینلاین
+        # ساختن گزینه‌های اینلاین
         results = [
             InlineQueryResultArticle(
                 id="1",
@@ -168,8 +198,20 @@ async def inline_query(update: Update, context):
                 input_message_content=InputTextMessageContent(message),
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             ),
+            InlineQueryResultArticle(
+                id="3",
+                title="💰 جستجوی قیمت رمز ارز",
+                input_message_content=InputTextMessageContent("برای جستجوی قیمت یک رمز ارز دستور زیر را ارسال کنید:\n/price <نام_رمز_ارز>"),
+                description="دریافت قیمت رمز ارز دلخواه"
+            )
         ]
-        await update.inline_query.answer(results, cache_time=0)
+
+        # ارسال پاسخ نهایی
+        await update.inline_query.answer(results, cache_time=10)
+
+        # محاسبه و لاگ زمان پردازش
+        processing_time = time.time() - start_time
+        logging.debug(f"Inline query processed in {processing_time:.2f} seconds")
 
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
@@ -200,7 +242,7 @@ async def set_webhook():
         logging.error(f"Failed to set webhook: {set_webhook_response.text}")
         raise RuntimeError(f"Failed to set webhook: {set_webhook_response.text}")
     else:
-        logging.info(f"Webhook set to: {webhook_url}")
+    	logging.info(f"Webhook set to: {webhook_url}")
 
 async def main():
     conn = sqlite3.connect(DATABASE)
@@ -213,6 +255,7 @@ async def main():
     await bot.initialize()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(InlineQueryHandler(inline_query))
+    application.add_handler(CommandHandler("price", get_crypto_price))  # اضافه کردن فرمان /price به هندلرها
 
     await set_webhook()
 
