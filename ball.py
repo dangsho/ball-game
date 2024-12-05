@@ -66,18 +66,11 @@ def get_crypto_price_from_coingecko(crypto_name):
     try:
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_name}&vs_currencies=usd"
         response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get(crypto_name, {}).get("usd", "ناموجود")
-        elif response.status_code == 429:
-            logging.error("Rate limit exceeded for CoinGecko API. Try again later.")
-            return "بیش از حد مجاز"
-        else:
-            logging.error(f"Failed to fetch price from CoinGecko: {response.status_code} - {response.text}")
-            return "ناموجود"
-    except Exception as e:
-        logging.error(f"Error fetching price from CoinGecko: {e}")
-        return "خطا"
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        print(f"Error fetching data: {e}")
+        return {}
 
 def get_crypto_price_from_nobitex(crypto_name):
     """دریافت قیمت ارز دیجیتال از نوبیتکس"""
@@ -86,7 +79,7 @@ def get_crypto_price_from_nobitex(crypto_name):
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json().get("stats", {})
-            market_key = f"{crypto_name}-irt"
+            market_key = f"{crypto_name}-RLS"
             return data.get(market_key, {}).get("last", "ناموجود")
         elif response.status_code == 429:
             logging.error("Rate limit exceeded for Nobitex API. Try again later.")
@@ -120,7 +113,7 @@ async def inline_query(update: Update, context):
         # دریافت قیمت ارزهای دیجیتال
         bitcoin_price = get_crypto_price_from_coingecko('bitcoin')
         ethereum_price = get_crypto_price_from_coingecko('ethereum')
-        tether_price_toman = get_crypto_price_from_nobitex('usdt')
+        tether_price_toman = get_crypto_price_from_nobitex('usdt-rls')
 
         # ساختن متن پیام تاریخ و قیمت ثابت
         message = (
