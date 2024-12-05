@@ -134,12 +134,12 @@ async def inline_query(update: Update, context):
 
         # ساختن متن پیام تاریخ و قیمت ثابت
         message = (
-            f'@dangsho_bot\n'
+            f'@dangsho_bot\n\n'
             
-            f"💰 قیمت ارزهای دیجیتال:\n"
+            f"\n💰 قیمت ارزهای دیجیتال:\n"
             f"₿ بیت‌کوین: ${bitcoin_price}\n"
-            f" اتریوم: ${ethereum_price}\n"
-            f"💵 تتر: {tether_price_toman} "
+            f"E اتریوم: ${ethereum_price}\n"
+            f"💵 تتر: {tether_price_toman}\n"
             
             f"⏰:\n{tehran_time.strftime('%H:%M:%S')}\n"
             f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n"
