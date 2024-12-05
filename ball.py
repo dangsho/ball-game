@@ -79,7 +79,7 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
         logging.error(f"Error fetching data from CoinMarketCap: {e}")
         return "خطا در دریافت اطلاعات"
 
-def get_usdt_to_irr_price():
+def get_usdt_to_irr_price(prls):
     """دریافت قیمت تتر به ریال ایران از نوبیتکس"""
     try:
         # ارسال درخواست به API نوبیتکس
@@ -91,7 +91,7 @@ def get_usdt_to_irr_price():
             data = response.json().get("stats", {})
             
             # استخراج قیمت تتر به ریال (USDT-IRR)
-            usdt_data = data.get("usdt-rls", {})
+            usdt_data = data.get(prls+"-rls", {})
             latest_price = usdt_data.get("latest")
             if latest_price:
                 return f"{int(float(latest_price)):,} ریال"
@@ -130,7 +130,9 @@ async def inline_query(update: Update, context):
         # دریافت قیمت ارزهای دیجیتال
         bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
         ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
-        tether_price_toman = get_usdt_to_irr_price()
+        tether_price_toman = get_usdt_to_irr_price('usdt')
+        major_price_toman = get_usdt_to_irr_price('major')
+        xempire_price_toman = get_usdt_to_irr_price('x')
 
         # ساختن متن پیام تاریخ و قیمت ثابت
         message = (
@@ -140,6 +142,8 @@ async def inline_query(update: Update, context):
             f"₿ بیت‌کوین: ${bitcoin_price}\n"
             f" اتریوم: ${ethereum_price}\n"
             f"💵 تتر: {tether_price_toman}\n"
+            f"میجر: {major_price_toman}\n"
+            f"ایکس امپایر: {xempire_price_toman}\n"
             
             f"⏰:\n{tehran_time.strftime('%H:%M:%S')}\n"
             f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n"
