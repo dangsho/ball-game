@@ -79,24 +79,34 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
         logging.error(f"Error fetching data from CoinMarketCap: {e}")
         return "خطا در دریافت اطلاعات"
 
-def get_crypto_price_from_nobitex(crypto_name):
-    """دریافت قیمت ارز دیجیتال از نوبیتکس"""
+def get_usdt_to_irr_price():
+    """دریافت قیمت تتر به ریال ایران از نوبیتکس"""
     try:
+        # ارسال درخواست به API نوبیتکس
         url = "https://api.nobitex.ir/market/stats"
         response = requests.get(url)
+        
+        # بررسی موفقیت‌آمیز بودن درخواست
         if response.status_code == 200:
             data = response.json().get("stats", {})
-            market_key = f"{crypto_name}-RLS"
-            return data.get(market_key, {}).get("last", "ناموجود")
+            
+            # استخراج قیمت تتر به ریال (USDT-IRR)
+            usdt_data = data.get("usdt-rls", {})
+            latest_price = usdt_data.get("latest")
+            if latest_price:
+                return f"{int(float(latest_price)):,} ریال"
+            else:
+                return "قیمت تتر به ریال موجود نیست."
+        
         elif response.status_code == 429:
             logging.error("Rate limit exceeded for Nobitex API. Try again later.")
-            return "بیش از حد مجاز"
+            return "محدودیت درخواست‌ها"
         else:
-            logging.error(f"Failed to fetch price from Nobitex: {response.status_code} - {response.text}")
-            return "ناموجود"
+            logging.error(f"Failed to fetch data from Nobitex: {response.status_code} - {response.text}")
+            return "خطا در دریافت داده‌ها"
     except Exception as e:
-        logging.error(f"Error fetching price from Nobitex: {e}")
-        return "خطا"
+        logging.error(f"Error fetching data from Nobitex: {e}")
+        return "خطای سیستم"
 
 async def inline_query(update: Update, context):
     try:
@@ -120,7 +130,7 @@ async def inline_query(update: Update, context):
         # دریافت قیمت ارزهای دیجیتال
         bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
         ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
-        tether_price_toman = get_crypto_price_from_nobitex('USDT-RLS')
+        tether_price_toman = get_usdt_to_irr_price()
 
         # ساختن متن پیام تاریخ و قیمت ثابت
         message = (
