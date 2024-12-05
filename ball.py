@@ -180,7 +180,7 @@ async def inline_query(update: Update, context):
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             ),
         ]
-        await update.inline_query.answer(results, cache_time=0)
+        await update.inline_query.answer(results, cache_time=10)
 
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
