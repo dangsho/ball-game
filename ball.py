@@ -138,7 +138,7 @@ async def inline_query(update: Update, context):
             
             f"\n💰 قیمت ارزهای دیجیتال:\n"
             f"₿ بیت‌کوین: ${bitcoin_price}\n"
-            f"E اتریوم: ${ethereum_price}\n"
+            f" اتریوم: ${ethereum_price}\n"
             f"💵 تتر: {tether_price_toman}\n"
             
             f"⏰:\n{tehran_time.strftime('%H:%M:%S')}\n"
