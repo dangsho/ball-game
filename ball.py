@@ -1,7 +1,7 @@
 import os
 from quart import Quart, request
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import Application, CommandHandler, InlineQueryHandler
+from telegram.ext import Application, CommandHandler, InlineQueryHandler, MessageHandler, filters
 import sqlite3
 import requests
 import asyncio
@@ -104,97 +104,79 @@ def get_usdt_to_irr_price(prls):
         logging.error(f"Error fetching data from Nobitex: {e}")
         return "خطای سیستم"
 
-async def get_crypto_price(update: Update, context):
-    """دریافت قیمت رمز ارز با استفاده از APIهای نوبیتکس و CoinMarketCap"""
-    try:
-        if len(context.args) == 0:
-            await update.message.reply_text("لطفاً نام رمز ارز مورد نظر را وارد کنید. مثال: /price BTC")
-            return
-
-        crypto_name = context.args[0].upper()
-
-        # قیمت از CoinMarketCap
-        cmc_price = get_crypto_price_from_coinmarketcap(crypto_name)
-
-        # قیمت از نوبیتکس (اگر ارز در نوبیتکس موجود باشد)
-        nobitex_price = get_usdt_to_irr_price(crypto_name.lower())
-
-        response_message = (
-            f"💰 قیمت {crypto_name}:\n"
-            f"- کوین مارکت کپ: ${cmc_price}\n"
-            f"- نوبیتکس: {nobitex_price}\n"
-        )
-
-        await update.message.reply_text(response_message)
-
-    except Exception as e:
-        logging.error(f"Error in /price command: {e}")
-        await update.message.reply_text("متأسفانه مشکلی پیش آمده است. لطفاً دوباره تلاش کنید.")
-
-import time  # برای اندازه‌گیری زمان پردازش
-
 async def inline_query(update: Update, context):
     try:
-        # تنظیمات زمان و تاریخ
-        tehran_tz = timezone("Asia/Tehran")
-        tehran_time = datetime.datetime.now(tehran_tz)
+        query = update.inline_query.query.strip().upper()  # دریافت متن وارد شده توسط کاربر
 
-        jalali_date = jdatetime.datetime.fromgregorian(datetime=tehran_time)
-        gregorian_date = tehran_time.strftime("%Y-%m-%d")
+        if not query:  # اگر متنی وارد نشده باشد
+            game_url = "https://dangsho.github.io/ball-game/"
+            results = [
+                InlineQueryResultArticle(
+                    id="1",
+                    title="🎮 باز کردن لینک",
+                    input_message_content=InputTextMessageContent(f"تاریخ را از این لینک باز کنید:\n{game_url}"),
+                    description="ارسال لینک ⏰"
+                ),
+                InlineQueryResultArticle(
+                    id="2",
+                    title="💰 دریافت قیمت رمز ارزها",
+                    input_message_content=InputTextMessageContent(
+                        "برای دریافت قیمت رمز ارز، نام آن را تایپ کنید. مثال: BTC"
+                    ),
+                    description="ارسال نام رمز ارز برای دریافت قیمت"
+                )
+            ]
+            await update.inline_query.answer(results, cache_time=10)
+            return
 
-        islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
-        hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
+        cmc_price = get_crypto_price_from_coinmarketcap(query)  # قیمت از CoinMarketCap
+        nobitex_price = get_usdt_to_irr_price(query.lower())  # قیمت از نوبیتکس
 
-        # دریافت قیمت‌ها
-        bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
-        ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
-        tether_price_toman = get_usdt_to_irr_price('usdt')
-        major_price_toman = get_usdt_to_irr_price('major')
-        xempire_price_toman = get_usdt_to_irr_price('x')
+        if cmc_price == "خطا در دریافت اطلاعات" and "خطا" in nobitex_price:
+            message = f"❌ رمز ارز '{query}' پیدا نشد یا اطلاعات آن در دسترس نیست."
+        else:
+            message = (
+                f"💰 قیمت رمز ارز '{query}':\n"
+                f"- کوین مارکت کپ: ${cmc_price}\n"
+                f"- نوبیتکس: {nobitex_price}\n"
+            )
 
-        message = (
-            f'@dangsho_bot\n\n'
-            f"\n💰 قیمت ارزهای دیجیتال:\n"
-            f"₿ بیت‌کوین: ${bitcoin_price}\n"
-            f" اتریوم: ${ethereum_price}\n"
-            f"💵 تتر: {tether_price_toman}\n"
-            f"میجر: {major_price_toman}\n"
-            f"ایکس امپایر: {xempire_price_toman}\n"
-            f"⏰:\n{tehran_time.strftime('%H:%M:%S')}\n"
-            f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n"
-            f"📅 تاریخ میلادی:\n{gregorian_date}\n"
-            f"📅 تاریخ قمری:\n{hijri_date}\n"
-        )
-
-        game_url = "https://dangsho.github.io/ball-game/"
-
-        # ساختن گزینه‌های اینلاین
         results = [
             InlineQueryResultArticle(
                 id="1",
-                title="🎮 باز کردن لینک",
-                input_message_content=InputTextMessageContent(f"تاریخ را از این لینک باز کنید:\n{game_url}"),
-                description="ارسال لینک ⏰"
-            ),
-            InlineQueryResultArticle(
-                id="2",
-                title="⏰ ارسال تاریخ و قیمت‌ها به چت",
+                title=f"💰 قیمت {query}",
                 input_message_content=InputTextMessageContent(message),
-                description="ارسال تاریخ و قیمت‌ ارزها به چت"
-            ),
-            InlineQueryResultArticle(
-                id="3",
-                title="💰 جستجوی قیمت رمز ارز",
-                input_message_content=InputTextMessageContent("برای جستجوی قیمت یک رمز ارز دستور زیر را ارسال کنید:\n/price <نام_رمز_ارز>"),
-                description="دریافت قیمت رمز ارز دلخواه"
+                description=f"مشاهده قیمت {query}"
             )
         ]
 
-        # ارسال پاسخ اینلاین
         await update.inline_query.answer(results, cache_time=10)
 
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
+
+async def handle_crypto_price(update: Update, context):
+    """هندلر برای دریافت پیام کاربر و ارسال قیمت رمز ارز"""
+    try:
+        crypto_name = update.message.text.strip().upper()
+
+        cmc_price = get_crypto_price_from_coinmarketcap(crypto_name)
+        nobitex_price = get_usdt_to_irr_price(crypto_name.lower())
+
+        if cmc_price == "خطا در دریافت اطلاعات" and "خطا" in nobitex_price:
+            response_message = f"❌ رمز ارز '{crypto_name}' پیدا نشد یا اطلاعات آن در دسترس نیست."
+        else:
+            response_message = (
+                f"💰 قیمت رمز ارز '{crypto_name}':\n"
+                f"- کوین مارکت کپ: ${cmc_price}\n"
+                f"- نوبیتکس: {nobitex_price}\n"
+            )
+
+        await update.message.reply_text(response_message)
+
+    except Exception as e:
+        logging.error(f"Error in handle_crypto_price: {e}")
+        await update.message.reply_text("❌ متأسفانه مشکلی پیش آمده است. لطفاً دوباره تلاش کنید.")
 
 @flask_app.route('/webhook', methods=['POST'])
 async def webhook_update():
@@ -222,7 +204,7 @@ async def set_webhook():
         logging.error(f"Failed to set webhook: {set_webhook_response.text}")
         raise RuntimeError(f"Failed to set webhook: {set_webhook_response.text}")
     else:
-    	logging.info(f"Webhook set to: {webhook_url}")
+        logging.info(f"Webhook set to: {webhook_url}")
 
 async def main():
     conn = sqlite3.connect(DATABASE)
@@ -235,7 +217,7 @@ async def main():
     await bot.initialize()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(InlineQueryHandler(inline_query))
-    application.add_handler(CommandHandler("price", get_crypto_price))  # اضافه کردن فرمان /price به هندلرها
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_crypto_price))  # هندلر پیام
 
     await set_webhook()
 
