@@ -99,13 +99,14 @@ async def inline_query(update: Update, context):
         islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
-        # دریافت قیمت‌ها
+        # دریافت قیمت‌ها از CoinMarketCap و Nobitex
         bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
         ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
         tether_price_toman = get_usdt_to_irr_price('usdt')
         xempire_price_toman = get_usdt_to_irr_price('x')
-        major_price_toman = get_usdt_to_irr_price('major')  # مقداردهی کامل
+        major_price_toman = get_usdt_to_irr_price('major')
 
+        # ساخت پیام برای ارسال
         message = (
             f'\n@dangsho_bot\n'
             f"\n💰 قیمت ارزهای دیجیتال:\n"
@@ -140,25 +141,14 @@ async def inline_query(update: Update, context):
                 title="💰 جستجوی قیمت رمز ارز",
                 input_message_content=InputTextMessageContent("برای جستجوی قیمت یک رمز ارز دستور زیر را ارسال کنید:\n/price <نام_رمز_ارز>"),
                 description="دریافت قیمت رمز ارز دلخواه"
-             )
+            )
         ]
 
         await update.inline_query.answer(results, cache_time=10)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
 
-@flask_app.route('/webhook', methods=['POST'])
-async def webhook_update():
-    if request.method == "POST":
-        try:
-            data = await request.get_json()
-            update = Update.de_json(data, bot)
-            await application.update_queue.put(update)
-            return 'ok', 200
-        except Exception as e:
-            logging.error(f"Error processing webhook: {e}")
-            return 'Bad Request', 400
-
+# تابع برای تنظیم Webhook
 async def set_webhook():
     public_url = os.getenv("RENDER_EXTERNAL_URL")
     if not public_url:
@@ -174,6 +164,7 @@ async def set_webhook():
     else:
         logging.info(f"Webhook set to: {webhook_url}")
 
+# تابع اصلی برای راه‌اندازی برنامه
 async def main():
     conn = sqlite3.connect(DATABASE)
     c = conn.cursor()
