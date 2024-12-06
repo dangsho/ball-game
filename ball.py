@@ -110,7 +110,7 @@ async def inline_query(update: Update, context):
             f"\n💰 قیمت ارزهای دیجیتال:\n"
             f"#BTC: ${bitcoin_price}\n"
             f"#ETH: ${ethereum_price}\n"
-            f"#Usdt: {tether_price_toman/10}\n"
+            f"\nقیمت‌های زیر به #تومان است:#Usdt: {tether_price_toman/10}\n"
             f"#Major: {major_price_toman/10}\n"
             f"#X Empire: {xempire_price_toman/10}\n"
             f"\n___________⏰___________:\n\n{tehran_time.strftime('%H:%M:%S')}\n"
