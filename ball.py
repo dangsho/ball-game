@@ -77,7 +77,7 @@ async def get_crypto_price_direct(update: Update, context):
         crypto_name = update.message.text.strip().upper()
         
         # اطمینان از اینکه ورودی یک نام معتبر ارز است
-        if " " in crypto_name or crypto_name.startswith(("ADD", "DEL", "LIST")):
+        if " " in crypto_name or crypto_name.startswith(("add", "del", "list")):
             return  # اگر دستور نامعتبر باشد، تابع را ترک کن
 
         # دریافت قیمت از API
@@ -270,10 +270,12 @@ async def webhook_update():
 async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
 
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_crypto_price_direct))
     application.add_handler(CommandHandler("add", add_crypto))
     application.add_handler(CommandHandler("del", del_crypto))
     application.add_handler(CommandHandler("list", list_cryptos))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_crypto_price_direct))
+    application.add_handler(InlineQueryHandler(inline_query))
+
     
     await set_webhook()
     await application.initialize()
