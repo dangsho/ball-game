@@ -106,14 +106,14 @@ async def inline_query(update: Update, context):
         major_price_toman = get_usdt_to_irr_price('major')  # مقداردهی کامل
 
         message = (
-            f'@dangsho_bot\n\n'
+            f'\n@dangsho_bot\n'
             f"\n💰 قیمت ارزهای دیجیتال:\n"
-            f"₿ بیت‌کوین: ${bitcoin_price}\n"
-            f" اتریوم: ${ethereum_price}\n"
-            f"💵 تتر: {tether_price_toman}\n"
-            f"میجر: {major_price_toman}\n"
-            f"ایکس امپایر: {xempire_price_toman}\n"
-            f"⏰:\n{tehran_time.strftime('%H:%M:%S')}\n"
+            f"#BTC: ${bitcoin_price}\n"
+            f"#ETH: ${ethereum_price}\n"
+            f"#Usdt: {tether_price_toman}\n"
+            f"#Major: {major_price_toman}\n"
+            f"#X Empire: {xempire_price_toman}\n"
+            f"_______⏰_______:\n\n{tehran_time.strftime('%H:%M:%S')}\n"
             f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n"
             f"📅 تاریخ میلادی:\n{gregorian_date}\n"
             f"📅 تاریخ قمری:\n{hijri_date}\n"
