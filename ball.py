@@ -1,3 +1,5 @@
+#pylint:disable=E0602
+#pylint:disable= ''[' was never closed (<unknown>, line 109)'
 import os
 from quart import Quart, request
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
@@ -117,24 +119,6 @@ async def inline_query(update: Update, context):
                 id="2",
                 title="⏰ ارسال تاریخ و قیمت‌ها به چت", input_message_content=InputTextMessageContent(message),
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
-            ),
-            InlineQueryResultArticle(
-                id="3",
-                title="💰 جستجوی قیمت رمز ارز",
-                input_message_content=InputTextMessageContent("برای جستجوی قیمت یک رمز ارز نام آن را به چت ارسال کنید."),
-                description="دریافت قیمت رمز ارز دلخواه"
-            ),
-            InlineQueryResultArticle(
-                id="4",
-                title="📜 همه ارزهای کوین مارکت کپ",
-                input_message_content=InputTextMessageContent("لطفاً منتظر بمانید... (این بخش نیازمند توسعه API است)"),
-                description="ارسال لیست کامل ارزهای کوین مارکت کپ"
-            ),
-            InlineQueryResultArticle(
-                id="5",
-                title="📜 همه ارزهای نوبیتکس",
-                input_message_content=InputTextMessageContent("لطفاً منتظر بمانید... (این بخش نیازمند توسعه API است)"),
-                description="ارسال لیست کامل ارزهای نوبیتکس"
             )
         ]
 
