@@ -135,7 +135,11 @@ async def inline_query(update: Update, context):
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             )
         ]
+        await update.inline_query.answer(results, cache_time=10)
+    except Exception as e:
+        logging.error(f"Error in inline query handler: {e}")
 
+        
 # مدیریت لیست ارزها برای کاربران
 def setup_database():
     conn = sqlite3.connect(DATABASE)
@@ -220,12 +224,8 @@ async def list_cryptos(update: Update, context):
     except Exception as e:
         logging.error(f"Error in list_cryptos: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
-        
 
-        await update.inline_query.answer(results, cache_time=10)
-    except Exception as e:
-        logging.error(f"Error in inline query handler: {e}")
-        
+     
 # تابع برای تنظیم Webhook
 async def set_webhook():
     public_url = os.getenv("RENDER_EXTERNAL_URL")
