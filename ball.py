@@ -147,6 +147,20 @@ async def inline_query(update: Update, context):
         await update.inline_query.answer(results, cache_time=10)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
+        
+@flask_app.route('/webhook', methods=['POST'])
+        
+async def webhook_update():
+    if request.method == "POST":
+        try:
+            data = await request.get_json()
+            update = Update.de_json(data, bot)
+            await application.update_queue.put(update)
+            return 'ok', 200
+        except Exception as e:
+            logging.error(f"Error processing webhook: {e}")
+            return 'Bad Request', 400
+
 
 # تابع برای تنظیم Webhook
 async def set_webhook():
