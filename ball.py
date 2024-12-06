@@ -185,7 +185,7 @@ async def main():
     await bot.initialize()
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_crypto_price_direct))
     application.add_handler(InlineQueryHandler(inline_query))
-add_handler(CommandHandler("price", get_crypto_price_direct))  # اضافه کردن فرمان /price به هندلرها
+    application.add_handler(CommandHandler("price", get_crypto_price_direct))  # اضافه کردن فرمان /price به هندلرها
 
     await set_webhook()
     await application.initialize()
