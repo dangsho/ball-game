@@ -1,3 +1,4 @@
+#pylint:disable= 'unexpected indent (<unknown>, line 189)'
 #pylint:disable=E0602
 #pylint:disable= ''[' was never closed (<unknown>, line 109)'
 import os
@@ -133,7 +134,13 @@ async def inline_query(update: Update, context):
                 id="2",
                 title="⏰ ارسال تاریخ و قیمت‌ها به چت", input_message_content=InputTextMessageContent(message),
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
-            )
+            ),
+            InlineQueryResultArticle(
+                id="3",
+                title="💰 جستجوی قیمت رمز ارز",
+                input_message_content=InputTextMessageContent("برای جستجوی قیمت یک رمز ارز دستور زیر را ارسال کنید:\n/price <نام_رمز_ارز>"),
+                description="دریافت قیمت رمز ارز دلخواه"
+             )
         ]
 
         await update.inline_query.answer(results, cache_time=10)
@@ -178,6 +185,7 @@ async def main():
     await bot.initialize()
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_crypto_price_direct))
     application.add_handler(InlineQueryHandler(inline_query))
+add_handler(CommandHandler("price", get_crypto_price_direct))  # اضافه کردن فرمان /price به هندلرها
 
     await set_webhook()
     await application.initialize()
