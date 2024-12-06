@@ -1,6 +1,3 @@
-#pylint:disable= 'unexpected indent (<unknown>, line 189)'
-#pylint:disable=E0602
-#pylint:disable= ''[' was never closed (<unknown>, line 109)'
 import os
 from quart import Quart, request
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
@@ -136,33 +133,99 @@ async def inline_query(update: Update, context):
                 id="2",
                 title="⏰ ارسال تاریخ و قیمت‌ها به چت", input_message_content=InputTextMessageContent(message),
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
-            ),
-            InlineQueryResultArticle(
-                id="3",
-                title="💰 جستجوی قیمت رمز ارز",
-                input_message_content=InputTextMessageContent("برای جستجوی قیمت یک رمز ارز دستور زیر را ارسال کنید:\n/price <نام_رمز_ارز>"),
-                description="دریافت قیمت رمز ارز دلخواه"
             )
         ]
+
+# مدیریت لیست ارزها برای کاربران
+def setup_database():
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    # جدول لیست ارزهای کاربران
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS user_cryptos (
+            user_id INTEGER,
+            crypto_symbol TEXT,
+            PRIMARY KEY (user_id, crypto_symbol)
+        )
+    ''')
+    # جدول سایر داده‌ها
+    c.execute('''CREATE TABLE IF NOT EXISTS game_sessions
+                 (unique_id TEXT, user_id INTEGER, game_short_name TEXT, inline_message_id TEXT)''')
+    conn.commit()
+    conn.close()
+
+# اضافه کردن ارز به لیست کاربر
+async def add_crypto(update: Update, context):
+    try:
+        user_id = update.effective_user.id
+        message = update.message.text.split()
+        if len(message) < 2:
+            await update.message.reply_text("❗️ دستور صحیح: add <نام_ارز>")
+            return
+        crypto_symbol = message[1].upper()
+        
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
+        c.execute("INSERT OR IGNORE INTO user_cryptos (user_id, crypto_symbol) VALUES (?, ?)", (user_id, crypto_symbol))
+        conn.commit()
+        conn.close()
+        
+        await update.message.reply_text(f"✅ ارز {crypto_symbol} به لیست شما اضافه شد.")
+    except Exception as e:
+        logging.error(f"Error in add_crypto: {e}")
+        await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+
+# حذف ارز از لیست کاربر
+async def del_crypto(update: Update, context):
+    try:
+        user_id = update.effective_user.id
+        message = update.message.text.split()
+        if len(message) < 2:
+            await update.message.reply_text("❗️ دستور صحیح: del <نام_ارز>")
+            return
+        crypto_symbol = message[1].upper()
+        
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
+        c.execute("DELETE FROM user_cryptos WHERE user_id = ? AND crypto_symbol = ?", (user_id, crypto_symbol))
+        conn.commit()
+        conn.close()
+        
+        await update.message.reply_text(f"✅ ارز {crypto_symbol} از لیست شما حذف شد.")
+    except Exception as e:
+        logging.error(f"Error in del_crypto: {e}")
+        await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+
+# نمایش لیست ارزهای کاربر به همراه قیمت
+async def list_cryptos(update: Update, context):
+    try:
+        user_id = update.effective_user.id
+        
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
+        c.execute("SELECT crypto_symbol FROM user_cryptos WHERE user_id = ?", (user_id,))
+        cryptos = [row[0] for row in c.fetchall()]
+        conn.close()
+        
+        if not cryptos:
+            await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
+            return
+        
+        response = "💰 لیست ارزهای شما:\n"
+        for crypto in cryptos:
+            price = get_crypto_price_from_coinmarketcap(crypto)
+            response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
+        
+        await update.message.reply_text(response)
+    except Exception as e:
+        logging.error(f"Error in list_cryptos: {e}")
+        await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+        
 
         await update.inline_query.answer(results, cache_time=10)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
         
-@flask_app.route('/webhook', methods=['POST'])
-        
-async def webhook_update():
-    if request.method == "POST":
-        try:
-            data = await request.get_json()
-            update = Update.de_json(data, bot)
-            await application.update_queue.put(update)
-            return 'ok', 200
-        except Exception as e:
-            logging.error(f"Error processing webhook: {e}")
-            return 'Bad Request', 400
-
-
 # تابع برای تنظیم Webhook
 async def set_webhook():
     public_url = os.getenv("RENDER_EXTERNAL_URL")
@@ -179,20 +242,28 @@ async def set_webhook():
     else:
         logging.info(f"Webhook set to: {webhook_url}")
 
+@flask_app.route('/webhook', methods=['POST'])
+        
+async def webhook_update():
+    if request.method == "POST":
+        try:
+            data = await request.get_json()
+            update = Update.de_json(data, bot)
+            await application.update_queue.put(update)
+            return 'ok', 200
+        except Exception as e:
+            logging.error(f"Error processing webhook: {e}")
+            return 'Bad Request', 400
+
 # تابع اصلی برای راه‌اندازی برنامه
 async def main():
-    conn = sqlite3.connect(DATABASE)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS game_sessions
-                 (unique_id TEXT, user_id INTEGER, game_short_name TEXT, inline_message_id TEXT)''')
-    conn.commit()
-    conn.close()
+    setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
 
-    await bot.initialize()
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_crypto_price_direct))
-    application.add_handler(InlineQueryHandler(inline_query))
-    application.add_handler(CommandHandler("price", get_crypto_price_direct))  # اضافه کردن فرمان /price به هندلرها
-
+    application.add_handler(CommandHandler("add", add_crypto))
+    application.add_handler(CommandHandler("del", del_crypto))
+    application.add_handler(CommandHandler("list", list_cryptos))
+    
     await set_webhook()
     await application.initialize()
     asyncio.create_task(application.start())
