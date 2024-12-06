@@ -105,6 +105,20 @@ async def inline_query(update: Update, context):
         xempire_price_toman = get_usdt_to_irr_price('x')
         major_price_toman = get_usdt_to_irr_price('major')  # مقداردهی کامل
 
+        message = (
+            f'@dangsho_bot\n\n'
+            f"\n💰 قیمت ارزهای دیجیتال:\n"
+            f"₿ بیت‌کوین: ${bitcoin_price}\n"
+            f" اتریوم: ${ethereum_price}\n"
+            f"💵 تتر: {tether_price_toman}\n"
+            f"میجر: {major_price_toman}\n"
+            f"ایکس امپایر: {xempire_price_toman}\n"
+            f"⏰:\n{tehran_time.strftime('%H:%M:%S')}\n"
+            f"📅 تاریخ شمسی:\n{jalali_date.strftime('%Y/%m/%d')}\n"
+            f"📅 تاریخ میلادی:\n{gregorian_date}\n"
+            f"📅 تاریخ قمری:\n{hijri_date}\n"
+        )
+        
         game_url = "https://dangsho.github.io/ball-game/"
 
         # ساختن گزینه‌های اینلاین
