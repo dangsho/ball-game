@@ -4,7 +4,7 @@
 import os
 from quart import Quart, request
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import Application, InlineQueryHandler, MessageHandler, filters
+from telegram.ext import Application, InlineQueryHandler, MessageHandler, filters, CommandHandler
 import sqlite3
 import requests
 import asyncio
