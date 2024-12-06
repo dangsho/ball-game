@@ -41,6 +41,7 @@ async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
 def get_crypto_price_from_coinmarketcap(crypto_symbol):
+    crypto_symbol = str(crypto_symbol).upper()
     """دریافت قیمت ارز دیجیتال از CoinMarketCap"""
     try:
         url = f"https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
@@ -48,11 +49,11 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
             "X-CMC_PRO_API_KEY": "8baeefe8-4a9f-4947-8a9d-7f8ea40d91d3",
             "Accept": "application/json",
         }
-        params = {"symbol": crypto_symbol.upper, "convert": "USD"}
+        params = {"symbol": crypto_symbol, "convert": "USD"}
         response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
         data = response.json()
-        price = data["data"][crypto_symbol.upper]["quote"]["USD"]["price"]
+        price = data["data"][crypto_symbol]["quote"]["USD"]["price"]
         return f"{price:,.2f}"
     except requests.RequestException as e:
         logging.error(f"Error fetching data from CoinMarketCap: {e}")
