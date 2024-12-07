@@ -37,6 +37,17 @@ flask_app = Quart(__name__)
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
+async def notify_admin(user_id: int, username: str = None):
+    """ارسال پیام اطلاع‌رسانی به مدیر"""
+    try:
+        message = f"🔔 کاربر جدید از ربات استفاده کرد:\n\n👤 آیدی کاربر: {user_id}"
+        if username:
+            message += f"\n📛 نام کاربری: @{username}"
+        await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message)
+    except Exception as e:
+        logging.error(f"Error notifying admin: {e}")
+
+
 def get_crypto_price_from_coinmarketcap(crypto_symbol):
     symbol = str(crypto_symbol).upper()
     """دریافت قیمت ارز دیجیتال از CoinMarketCap"""
@@ -73,9 +84,14 @@ def get_usdt_to_irr_price(prls):
 
 async def get_crypto_price_direct(update: Update, context):
     """ارسال قیمت ارز دیجیتال با ارسال مستقیم نام ارز"""
+
     try:
         crypto_name = update.message.text.strip().upper()
-
+        # ارسال اطلاع‌رسانی به مدیر
+        await notify_admin(
+            user_id=update.message.from_user.id, username=update.message.from_user.username
+        )
+        
         if " " in crypto_name or crypto_name.startswith(("add", "del", "list")):
             return  # اگر دستور نامعتبر باشد، تابع را ترک کن
 
@@ -142,7 +158,11 @@ async def inline_query(update: Update, context):
                 title="⏰ ارسال تاریخ و قیمت‌ها به چت", input_message_content=InputTextMessageContent(message),
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             )
-        ]
+        ]:
+        # ارسال اطلاع‌رسانی به مدیر
+        await notify_admin(
+            user_id=update.message.from_user.id, username=update.message.from_user.username
+        )      
         await update.inline_query.answer(results, cache_time=10)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
@@ -169,6 +189,12 @@ def setup_database():
 # اضافه کردن ارز به لیست کاربر
 # تغییر توابع مدیریت add، del، و list به MessageHandler
 async def handle_message(update: Update, context):
+    
+            # ارسال اطلاع‌رسانی به مدیر
+        await notify_admin(
+            user_id=update.message.from_user.id, username=update.message.from_user.username
+        )
+        
     try:
         message = update.message.text.strip().split(maxsplit=1)
         command = message[0].lower()  # استخراج دستور (add, del, list)
