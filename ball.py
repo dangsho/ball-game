@@ -124,6 +124,12 @@ async def get_crypto_price_direct(update: Update, context):
 
 async def inline_query(update: Update, context):
     try:
+        
+        # بررسی وجود inline_query
+        if not update.inline_query:
+            logging.error("Inline query is None.")
+            return
+            
         # تنظیمات زمان و تاریخ
         tehran_tz = timezone("Asia/Tehran")
         tehran_time = datetime.datetime.now(tehran_tz)
