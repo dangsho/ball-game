@@ -1,3 +1,4 @@
+#pylint:disable=E0102
 import os
 from quart import Quart, request
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
@@ -36,17 +37,6 @@ flask_app = Quart(__name__)
 @flask_app.route('/')
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
-
-async def notify_admin(user_id: int, username: str = None):
-    """ارسال پیام اطلاع‌رسانی به مدیر"""
-    try:
-        message = f"🔔 کاربر جدید از ربات استفاده کرد:\n\n👤 آیدی کاربر: {user_id}"
-        if username:
-            message += f"\n📛 نام کاربری: @{username}"
-        await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message)
-    except Exception as e:
-        logging.error(f"Error notifying admin: {e}")
-
 
 async def notify_admin(user_id: int, username: str = None):
     """ارسال پیام اطلاع‌رسانی به مدیر"""
@@ -177,6 +167,7 @@ async def inline_query(update: Update, context):
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             )
         ]
+ 
         
         await update.inline_query.answer(results, cache_time=10)
     except Exception as e:
