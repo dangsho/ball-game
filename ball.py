@@ -170,73 +170,56 @@ def setup_database():
     conn.close()
 
 # اضافه کردن ارز به لیست کاربر
-async def add_crypto(update: Update, context):
+# تغییر توابع مدیریت add، del، و list به MessageHandler
+async def handle_message(update: Update, context):
     try:
+        message = update.message.text.strip().split(maxsplit=1)
+        command = message[0].lower()  # استخراج دستور (add, del, list)
+        argument = message[1].upper() if len(message) > 1 else None  # استخراج نام ارز (در صورت وجود)
+
         user_id = update.effective_user.id
-        message = update.message.text.split()
-        if len(message) < 2:
-            await update.message.reply_text("❗️ دستور صحیح: add <نام_ارز>")
-            return
-        crypto_symbol = message[1].upper()
-        
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        c.execute("INSERT OR IGNORE INTO user_cryptos (user_id, crypto_symbol) VALUES (?, ?)", (user_id, crypto_symbol))
-        conn.commit()
-        conn.close()
+
+        if command == "add":
+            if not argument:
+                await update.message.reply_text("❗️ دستور صحیح: add <نام_ارز>")
+                return
+            c.execute("INSERT OR IGNORE INTO user_cryptos (user_id, crypto_symbol) VALUES (?, ?)", (user_id, argument))
+            conn.commit()
+            await update.message.reply_text(f"✅ ارز {argument} به لیست شما اضافه شد.")
         
-        await update.message.reply_text(f"✅ ارز {crypto_symbol} به لیست شما اضافه شد.")
+        elif command == "del":
+            if not argument:
+                await update.message.reply_text("❗️ دستور صحیح: del <نام_ارز>")
+                return
+            c.execute("DELETE FROM user_cryptos WHERE user_id = ? AND crypto_symbol = ?", (user_id, argument))
+            conn.commit()
+            await update.message.reply_text(f"✅ ارز {argument} از لیست شما حذف شد.")
+        
+        elif command == "list":
+            c.execute("SELECT crypto_symbol FROM user_cryptos WHERE user_id = ?", (user_id,))
+            cryptos = [row[0] for row in c.fetchall()]
+            if not cryptos:
+                await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
+            else:
+                response = "💰 لیست ارزهای شما:\n"
+                for crypto in cryptos:
+                    price = get_crypto_price_from_coinmarketcap(crypto)
+                    response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
+                await update.message.reply_text(response)
+        
+        else:
+            # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
+            await get_crypto_price_direct(update, context)
+
+        conn.close()
+
     except Exception as e:
-        logging.error(f"Error in add_crypto: {e}")
+        logging.error(f"Error in handle_message: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
 
-# حذف ارز از لیست کاربر
-async def del_crypto(update: Update, context):
-    try:
-        user_id = update.effective_user.id
-        message = update.message.text.split()
-        if len(message) < 2:
-            await update.message.reply_text("❗️ دستور صحیح: del <نام_ارز>")
-            return
-        crypto_symbol = message[1].upper()
-        
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-        c.execute("DELETE FROM user_cryptos WHERE user_id = ? AND crypto_symbol = ?", (user_id, crypto_symbol))
-        conn.commit()
-        conn.close()
-        
-        await update.message.reply_text(f"✅ ارز {crypto_symbol} از لیست شما حذف شد.")
-    except Exception as e:
-        logging.error(f"Error in del_crypto: {e}")
-        await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
 
-# نمایش لیست ارزهای کاربر به همراه قیمت
-async def list_cryptos(update: Update, context):
-    try:
-        user_id = update.effective_user.id
-        
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
-        c.execute("SELECT crypto_symbol FROM user_cryptos WHERE user_id = ?", (user_id,))
-        cryptos = [row[0] for row in c.fetchall()]
-        conn.close()
-        
-        if not cryptos:
-            await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
-            return
-        
-        response = "💰 لیست ارزهای شما:\n"
-        for crypto in cryptos:
-            price = get_crypto_price_from_coinmarketcap(crypto)
-            response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
-        
-        await update.message.reply_text(response)
-    except Exception as e:
-        logging.error(f"Error in list_cryptos: {e}")
-        await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
-
-     
 # تابع برای تنظیم Webhook
 async def set_webhook():
     public_url = os.getenv("RENDER_EXTERNAL_URL")
@@ -270,10 +253,7 @@ async def webhook_update():
 async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
 
-    application.add_handler(CommandHandler("add", add_crypto))
-    application.add_handler(CommandHandler("del", del_crypto))
-    application.add_handler(CommandHandler("list", list_cryptos))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_crypto_price_direct))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(InlineQueryHandler(inline_query))
 
     
