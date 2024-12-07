@@ -247,12 +247,15 @@ async def handle_message(update: Update, context):
             if not cryptos:
                 await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
             else:
-                response = "💰 لیست ارزهای شما:\n"
+                response = "💰 لیست ارزهای کوین مارکت کپ:\n"
                 for crypto in cryptos:
                     price = get_crypto_price_from_coinmarketcap(crypto)
                     response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
-                    price2 = get_usdt_to_irr_price(crypto)
-                    response += f"- {crypto}: ${price2 if price2 else 'نامشخص'}\n"
+                    await update.message.reply_text(response)
+                response = "💰 لیست ارزهای نوبیتکس:\n"
+                for crypto in cryptos:
+                    price = get_usdt_to_irr_price(crypto)
+                    response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
                 await update.message.reply_text(response)
         
         else:
