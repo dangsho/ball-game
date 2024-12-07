@@ -93,7 +93,7 @@ async def get_crypto_price_direct(update: Update, context):
                 response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
             await update.message.reply_text(response_message)
         else:
-            await update.message.reply_text("❌ ارز وارد شده پیدا نشد یا نامعتبر است.")
+            return
     except Exception as e:
         logging.error(f"Error in direct price fetch: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
