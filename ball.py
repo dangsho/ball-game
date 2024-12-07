@@ -129,7 +129,7 @@ async def get_crypto_price_direct(update: Update, context):
                 response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
             await update.message.reply_text(response_message)
         else:
-            await update.message.reply_text("❌ ارز وارد شده پیدا نشد یا نامعتبر است.")
+            return
     except Exception as e:
         logging.error(f"Error in direct price fetch: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
@@ -299,10 +299,8 @@ async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    application.add_handler(InlineQueryHandler(inline_query))
-
-# افزودن این دستور به مدیریت دستورات
     application.add_handler(CommandHandler("start", start))
+    application.   add_handler(InlineQueryHandler(inline_query))
 
     await set_webhook()
     await application.initialize()
