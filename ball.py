@@ -33,7 +33,43 @@ bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
+
+
 @flask_app.route('/')
+
+async def start(update: Update, context):
+    """نمایش پیام راهنما در ورود به ربات"""
+    welcome_message = (
+        "👋 خوش آمدید!\n"
+        "دستورات قابل استفاده:\n"
+        "- `add <نام ارز>`: افزودن ارز به لیست شما\n"
+        "- `del <نام ارز>`: حذف ارز از لیست شما\n"
+        "- `list`: نمایش لیست ارزهای شما\n"
+        "- ارسال 'تاریخ' یا 'time' برای مشاهده تاریخ‌های میلادی، شمسی، و قمری"
+    )
+    await update.message.reply_text(welcome_message)
+
+async def send_date_info(update: Update, context):
+    """ارسال تاریخ شمسی، میلادی و قمری به همراه مناسبت روز"""
+    try:
+        tehran_tz = timezone("Asia/Tehran")
+        now = datetime.datetime.now(tehran_tz)
+        jalali_date = jdatetime.datetime.fromgregorian(datetime=now)
+        islamic_date = convert.Gregorian(now.year, now.month, now.day).to_hijri()
+        hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
+
+        # پیام پاسخ شامل تاریخ‌ها
+        response = (
+            f"📅 تاریخ‌ها:\n"
+            f"- شمسی: {jalali_date.strftime('%Y/%m/%d')}\n"
+            f"- میلادی: {now.strftime('%Y-%m-%d')}\n"
+            f"- قمری: {hijri_date}\n\n"
+        )
+        await update.message.reply_text(response)
+    except Exception as e:
+        logging.error(f"Error in send_date_info: {e}")
+        await update.message.reply_text("⚠️ خطایی در دریافت تاریخ‌ها رخ داد.")
+
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
@@ -254,9 +290,15 @@ async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # افزودن این دستور به مدیریت پیام‌ها
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^(تاریخ|time)$"), send_date_info))
+
     application.add_handler(InlineQueryHandler(inline_query))
 
-    
+# افزودن این دستور به مدیریت دستورات
+    application.add_handler(CommandHandler("start", start))
+
     await set_webhook()
     await application.initialize()
     asyncio.create_task(application.start())
