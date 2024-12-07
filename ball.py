@@ -138,11 +138,7 @@ async def inline_query(update: Update, context):
         islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
-        # ارسال اطلاع‌رسانی به مدیر
-        await notify_admin(
-            user_id=update.message.from_user.id, username=update.message.from_user.username
-        )
-        
+
         # دریافت قیمت‌ها از CoinMarketCap و Nobitex
         bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
         ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
@@ -181,7 +177,11 @@ async def inline_query(update: Update, context):
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             )
         ]
-
+        # ارسال اطلاع‌رسانی به مدیر
+        await notify_admin(
+            user_id=update.message.from_user.id, username=update.message.from_user.username
+        )
+        
         await update.inline_query.answer(results, cache_time=10)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
