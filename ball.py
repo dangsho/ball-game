@@ -251,6 +251,8 @@ async def handle_message(update: Update, context):
                 for crypto in cryptos:
                     price = get_crypto_price_from_coinmarketcap(crypto)
                     response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
+                    price2 = get_usdt_to_irr_price(crypto)
+                    response += f"- {crypto}: ${price2 if price2 else 'نامشخص'}\n"
                 await update.message.reply_text(response)
         
         else:
