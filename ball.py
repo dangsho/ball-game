@@ -51,7 +51,7 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
         response.raise_for_status()
         data = response.json()
         price = data["data"][symbol]["quote"]["USD"]["price"]
-        return f"{price:,.2f}"
+        return price  # حذف فرمت‌بندی
     except requests.RequestException as e:
         logging.error(f"Error fetching data from CoinMarketCap: {e}")
         return None
@@ -70,30 +70,27 @@ def get_usdt_to_irr_price(prls):
         logging.error(f"Error fetching data from Nobitex: {e}")
         return None
 
+
 async def get_crypto_price_direct(update: Update, context):
     """ارسال قیمت ارز دیجیتال با ارسال مستقیم نام ارز"""
     try:
-        # جداسازی متن ورودی
         crypto_name = update.message.text.strip().upper()
-        
-        # اطمینان از اینکه ورودی یک نام معتبر ارز است
+
         if " " in crypto_name or crypto_name.startswith(("add", "del", "list")):
             return  # اگر دستور نامعتبر باشد، تابع را ترک کن
 
-        # دریافت قیمت از API
         cmc_price = get_crypto_price_from_coinmarketcap(crypto_name)
         nobitex_price = get_usdt_to_irr_price(crypto_name.lower())
 
-        # پاسخ به کاربر
         if cmc_price or nobitex_price:
             response_message = f"💰 قیمت {crypto_name}:\n"
             if cmc_price:
-                response_message += f"- کوین مارکت کپ: ${cmc_price}\n"
+                response_message += f"- کوین مارکت کپ: ${cmc_price:.8f}\n"  # نمایش با تمام ارقام اعشار
             if nobitex_price:
                 response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
             await update.message.reply_text(response_message)
         else:
-            return
+            await update.message.reply_text("⚠️ قیمت پیدا نشد.")
     except Exception as e:
         logging.error(f"Error in direct price fetch: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
