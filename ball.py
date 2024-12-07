@@ -177,10 +177,6 @@ async def inline_query(update: Update, context):
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             )
         ]
-        # ارسال اطلاع‌رسانی به مدیر
-        await notify_admin(
-            user_id=update.message.from_user.id, username=update.message.from_user.username
-        )
         
         await update.inline_query.answer(results, cache_time=10)
     except Exception as e:
