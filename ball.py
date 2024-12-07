@@ -93,7 +93,7 @@ async def get_crypto_price_direct(update: Update, context):
             return
     except Exception as e:
         logging.error(f"Error in direct price fetch: {e}")
-        await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+        
 
 async def inline_query(update: Update, context):
     try:
