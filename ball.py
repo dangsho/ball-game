@@ -209,11 +209,19 @@ def setup_database():
 # تغییر توابع مدیریت add، del، و list به MessageHandler
 async def handle_message(update: Update, context):
     try:
-        message = update.message.text.strip().split(maxsplit=1)
-        command = message[0].lower()  # استخراج دستور (add, del, list)
-        argument = message[1].upper() if len(message) > 1 else None  # استخراج نام ارز (در صورت وجود)
-
+        message_text = update.message.text.strip().lower()  # متن پیام ورودی
         user_id = update.effective_user.id
+
+        # اگر پیام "تاریخ" یا "time" است، تاریخ‌ها را ارسال کن
+        if message_text in ["تاریخ", "ontime"]:
+            await send_date_info(update, context)
+            return
+
+        # پردازش دستورات add, del, و list
+        message_parts = message_text.split(maxsplit=1)
+        command = message_parts[0]
+        argument = message_parts[1].upper() if len(message_parts) > 1 else None
+
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
 
@@ -246,7 +254,7 @@ async def handle_message(update: Update, context):
                 await update.message.reply_text(response)
         
         else:
-            # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
+            # اگر دستور خاصی نبود، تلاش برای جستجوی قیمت ارز
             await get_crypto_price_direct(update, context)
 
         conn.close()
@@ -254,6 +262,7 @@ async def handle_message(update: Update, context):
     except Exception as e:
         logging.error(f"Error in handle_message: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+
 
 
 # تابع برای تنظیم Webhook
@@ -290,10 +299,6 @@ async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    # افزودن این دستور به مدیریت پیام‌ها
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^(تاریخ|time)$"), send_date_info))
-
     application.add_handler(InlineQueryHandler(inline_query))
 
 # افزودن این دستور به مدیریت دستورات
