@@ -196,12 +196,8 @@ def setup_database():
 # تغییر توابع مدیریت add، del، و list به MessageHandler
 async def handle_message(update: Update, context):
     
-    try:
-        
-                # ارسال اطلاع‌رسانی به مدیر
-        await notify_admin(
-            user_id=update.message.from_user.id, username=update.message.from_user.username
-        )
+    try:    
+            
         
         message = update.message.text.strip().split(maxsplit=1)
         command = message[0].lower()  # استخراج دستور (add, del, list)
