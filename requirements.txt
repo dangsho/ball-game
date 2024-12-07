@@ -5,6 +5,7 @@ requests
 quart
 convertdate
 asyncio
+asyncpg
 pytz
 hijri-converter
 pyppeteer
