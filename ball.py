@@ -48,6 +48,17 @@ async def notify_admin(user_id: int, username: str = None):
         logging.error(f"Error notifying admin: {e}")
 
 
+async def notify_admin(user_id: int, username: str = None):
+    """ارسال پیام اطلاع‌رسانی به مدیر"""
+    try:
+        message = f"🔔 کاربر جدید از ربات استفاده کرد:\n\n👤 آیدی کاربر: {user_id}"
+        if username:
+            message += f"\n📛 نام کاربری: @{username}"
+        await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message)
+    except Exception as e:
+        logging.error(f"Error notifying admin: {e}")
+
+
 def get_crypto_price_from_coinmarketcap(crypto_symbol):
     symbol = str(crypto_symbol).upper()
     """دریافت قیمت ارز دیجیتال از CoinMarketCap"""
@@ -121,6 +132,11 @@ async def inline_query(update: Update, context):
         islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
 
+        # ارسال اطلاع‌رسانی به مدیر
+        await notify_admin(
+            user_id=update.message.from_user.id, username=update.message.from_user.username
+        )
+        
         # دریافت قیمت‌ها از CoinMarketCap و Nobitex
         bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
         ethereum_price = get_crypto_price_from_coinmarketcap('ETH')
@@ -158,11 +174,8 @@ async def inline_query(update: Update, context):
                 title="⏰ ارسال تاریخ و قیمت‌ها به چت", input_message_content=InputTextMessageContent(message),
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             )
-        ]:
-        # ارسال اطلاع‌رسانی به مدیر
-        await notify_admin(
-            user_id=update.message.from_user.id, username=update.message.from_user.username
-        )      
+        ]
+
         await update.inline_query.answer(results, cache_time=10)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
@@ -190,12 +203,13 @@ def setup_database():
 # تغییر توابع مدیریت add، del، و list به MessageHandler
 async def handle_message(update: Update, context):
     
-            # ارسال اطلاع‌رسانی به مدیر
+    try:
+        
+                # ارسال اطلاع‌رسانی به مدیر
         await notify_admin(
             user_id=update.message.from_user.id, username=update.message.from_user.username
         )
         
-    try:
         message = update.message.text.strip().split(maxsplit=1)
         command = message[0].lower()  # استخراج دستور (add, del, list)
         argument = message[1].upper() if len(message) > 1 else None  # استخراج نام ارز (در صورت وجود)
