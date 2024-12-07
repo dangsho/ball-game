@@ -252,12 +252,7 @@ async def handle_message(update: Update, context):
                     price = get_crypto_price_from_coinmarketcap(crypto)
                     response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
                     await update.message.reply_text(response)
-                response = "💰 لیست ارزهای نوبیتکس:\n"
-                for crypto in cryptos:
-                    price = get_usdt_to_irr_price(crypto)
-                    response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
-                await update.message.reply_text(response)
-        
+               
         else:
             # اگر دستور خاصی نبود، تلاش برای جستجوی قیمت ارز
             await get_crypto_price_direct(update, context)
