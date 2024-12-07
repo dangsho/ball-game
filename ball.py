@@ -33,43 +33,7 @@ bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
-
-
 @flask_app.route('/')
-
-async def start(update: Update, context):
-    """نمایش پیام راهنما در ورود به ربات"""
-    welcome_message = (
-        "👋 خوش آمدید!\n"
-        "دستورات قابل استفاده:\n"
-        "- `add <نام ارز>`: افزودن ارز به لیست شما\n"
-        "- `del <نام ارز>`: حذف ارز از لیست شما\n"
-        "- `list`: نمایش لیست ارزهای شما\n"
-        "- ارسال 'تاریخ' یا 'time' برای مشاهده تاریخ‌های میلادی، شمسی، و قمری"
-    )
-    await update.message.reply_text(welcome_message)
-
-async def send_date_info(update: Update, context):
-    """ارسال تاریخ شمسی، میلادی و قمری به همراه مناسبت روز"""
-    try:
-        tehran_tz = timezone("Asia/Tehran")
-        now = datetime.datetime.now(tehran_tz)
-        jalali_date = jdatetime.datetime.fromgregorian(datetime=now)
-        islamic_date = convert.Gregorian(now.year, now.month, now.day).to_hijri()
-        hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
-
-        # پیام پاسخ شامل تاریخ‌ها
-        response = (
-            f"📅 تاریخ‌ها:\n"
-            f"- شمسی: {jalali_date.strftime('%Y/%m/%d')}\n"
-            f"- میلادی: {now.strftime('%Y-%m-%d')}\n"
-            f"- قمری: {hijri_date}\n\n"
-        )
-        await update.message.reply_text(response)
-    except Exception as e:
-        logging.error(f"Error in send_date_info: {e}")
-        await update.message.reply_text("⚠️ خطایی در دریافت تاریخ‌ها رخ داد.")
-
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
@@ -129,7 +93,7 @@ async def get_crypto_price_direct(update: Update, context):
                 response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
             await update.message.reply_text(response_message)
         else:
-            return
+            await update.message.reply_text("❌ ارز وارد شده پیدا نشد یا نامعتبر است.")
     except Exception as e:
         logging.error(f"Error in direct price fetch: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
@@ -209,19 +173,11 @@ def setup_database():
 # تغییر توابع مدیریت add، del، و list به MessageHandler
 async def handle_message(update: Update, context):
     try:
-        message_text = update.message.text.strip().lower()  # متن پیام ورودی
+        message = update.message.text.strip().split(maxsplit=1)
+        command = message[0].lower()  # استخراج دستور (add, del, list)
+        argument = message[1].upper() if len(message) > 1 else None  # استخراج نام ارز (در صورت وجود)
+
         user_id = update.effective_user.id
-
-        # اگر پیام "تاریخ" یا "time" است، تاریخ‌ها را ارسال کن
-        if message_text in ["تاریخ", "ontime"]:
-            await send_date_info(update, context)
-            return
-
-        # پردازش دستورات add, del, و list
-        message_parts = message_text.split(maxsplit=1)
-        command = message_parts[0]
-        argument = message_parts[1].upper() if len(message_parts) > 1 else None
-
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
 
@@ -247,14 +203,14 @@ async def handle_message(update: Update, context):
             if not cryptos:
                 await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
             else:
-                response = "💰 لیست ارزهای کوین مارکت کپ:\n"
+                response = "💰 لیست ارزهای شما:\n"
                 for crypto in cryptos:
                     price = get_crypto_price_from_coinmarketcap(crypto)
                     response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
-                    await update.message.reply_text(response)
-               
+                await update.message.reply_text(response)
+        
         else:
-            # اگر دستور خاصی نبود، تلاش برای جستجوی قیمت ارز
+            # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
             await get_crypto_price_direct(update, context)
 
         conn.close()
@@ -262,7 +218,6 @@ async def handle_message(update: Update, context):
     except Exception as e:
         logging.error(f"Error in handle_message: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
-
 
 
 # تابع برای تنظیم Webhook
@@ -299,9 +254,9 @@ async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    application.add_handler(CommandHandler("start", start))
-    application.   add_handler(InlineQueryHandler(inline_query))
+    application.add_handler(InlineQueryHandler(inline_query))
 
+    
     await set_webhook()
     await application.initialize()
     asyncio.create_task(application.start())
