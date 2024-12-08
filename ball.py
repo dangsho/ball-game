@@ -25,11 +25,11 @@ logging.basicConfig(
 # تنظیمات توکن و دیتابیس
 TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 DB_CONFIG = {
-    "host": "localhost",
+    "host": "dpg-ctacug9u0jms73ev4r60-a",  # فقط نام میزبان یا آدرس IP
     "port": 5432,
     "user": "ontime_dangsho_user",
     "password": "EjMvIoNAOQBbU3eqhcvEeGpMlRWEtsQ2",
-    "database": "crypto_bot_db"
+    "database": "ontime_dangsho"  # نام پایگاه داده صحیح
 }
 ADMIN_CHAT_ID = 48232573
 
@@ -237,7 +237,8 @@ async def handle_message(update: Update, context):
             await update.message.reply_text(response)
         
         else:
-            await update.message.reply_text("❗️ دستور نامعتبر است. از دستورات add، del یا list استفاده کنید.")
+            # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
+            await get_crypto_price_direct(update, context)
     except Exception as e:
         logging.error(f"Error in handle_message: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
