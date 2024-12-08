@@ -113,7 +113,7 @@ async def get_crypto_price_direct(update: Update, context):
             response_message = f"💰 قیمت {crypto_name}:\n"
             if cmc_price is not None:
                 # اضافه کردن فلش سبز یا قرمز
-                arrow = "🔼" if percent_change_24h > 0 else "🔽"
+                arrow = "🟢" if percent_change_24h > 0 else "🔴"
                 response_message += (
                     f"- کوین مارکت کپ: ${cmc_price} {arrow} {abs(percent_change_24h):.2f}%\n"
                 )
