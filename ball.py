@@ -123,8 +123,7 @@ async def get_crypto_price_direct(update: Update, context):
                 response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
             await update.message.reply_text(response_message)
         else:
-            if crypto_name=="USER":
-                handle_user(update, context)
+            return
         	
     except Exception as e:
         logging.error(f"Error in direct price fetch: {e}")
