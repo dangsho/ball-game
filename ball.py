@@ -1,3 +1,4 @@
+#pylint:disable= 'invalid syntax (<unknown>, line 127)'
 import os
 from quart import Quart, request
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
@@ -46,8 +47,6 @@ async def notify_admin(user_id: int, username: str = None):
         await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message)
     except Exception as e:
         logging.error(f"Error notifying admin: {e}")
-
-
 
 
 def get_usdt_to_irr_price(prls):
@@ -124,7 +123,9 @@ async def get_crypto_price_direct(update: Update, context):
                 response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
             await update.message.reply_text(response_message)
         else:
-            await update.message.reply_text("⚠️ ارز یافت نشد. لطفاً دوباره تلاش کنید.")
+            if crypto_name=="USER":
+                handle_user(update, context)
+        	
     except Exception as e:
         logging.error(f"Error in direct price fetch: {e}")
         
@@ -348,9 +349,11 @@ async def webhook_update():
 # تابع اصلی برای راه‌اندازی برنامه
 async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
-
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user))
+    
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
     application.add_handler(CommandHandler("stats", show_stats))
     
     application.add_handler(InlineQueryHandler(inline_query))
