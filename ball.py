@@ -158,29 +158,22 @@ async def inline_query(update: Update, context):
         logging.error(f"Error in inline query handler: {e}")
 
 
-# مدیریت لیست ارزها برای کاربران
-async def setup_database():
-    conn = await asyncpg.connect(**DB_CONFIG)
-    await conn.execute('''
-        CREATE TABLE IF NOT EXISTS ontime_dangsho (
-            user_id BIGINT,
-            crypto_symbol TEXT,
-            PRIMARY KEY (user_id, crypto_symbol)
-        )
-    ''')
-    await conn.close()
-
-# ایجاد جدول در اولین اجرا
+# تابع واحد برای ایجاد جدول
 async def create_table_if_not_exists():
     conn = await asyncpg.connect(**DB_CONFIG)
     try:
+        # ایجاد جدول در صورت عدم وجود
         await conn.execute("""
-            CREATE TABLE IF NOT EXISTS ontime_dangsho (
+            CREATE TABLE IF NOT EXISTS public.ontime_dangsho (
                 user_id BIGINT NOT NULL,
-                crypto_symbol VARCHAR(50) NOT NULL,
+                crypto_symbol TEXT NOT NULL,
                 PRIMARY KEY (user_id, crypto_symbol)
             );
         """)
+        logging.info("Table 'ontime_dangsho' created or already exists.")
+    except Exception as e:
+        logging.error(f"Error in create_table_if_not_exists: {e}")
+        raise
     finally:
         await conn.close()
 
@@ -188,10 +181,14 @@ async def create_table_if_not_exists():
 async def add_crypto(user_id, crypto_symbol):
     conn = await asyncpg.connect(**DB_CONFIG)
     try:
+        # لاگ‌گیری پیش از درج
+        logging.info(f"Attempting to insert user_id={user_id}, crypto_symbol={crypto_symbol}")
+        
         await conn.execute(
-            "INSERT INTO ontime_dangsho (user_id, crypto_symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            "INSERT INTO public.ontime_dangsho (user_id, crypto_symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING",
             user_id, crypto_symbol
         )
+        logging.info("Insert successful")
     except Exception as e:
         logging.error(f"Error in add_crypto: {e}")
         raise
@@ -202,10 +199,13 @@ async def add_crypto(user_id, crypto_symbol):
 async def delete_crypto(user_id, crypto_symbol):
     conn = await asyncpg.connect(**DB_CONFIG)
     try:
+        logging.info(f"Attempting to delete user_id={user_id}, crypto_symbol={crypto_symbol}")
+        
         await conn.execute(
-            "DELETE FROM ontime_dangsho WHERE user_id = $1 AND crypto_symbol = $2",
+            "DELETE FROM public.ontime_dangsho WHERE user_id = $1 AND crypto_symbol = $2",
             user_id, crypto_symbol
         )
+        logging.info("Delete successful")
     except Exception as e:
         logging.error(f"Error in delete_crypto: {e}")
         raise
@@ -216,10 +216,14 @@ async def delete_crypto(user_id, crypto_symbol):
 async def get_user_cryptos(user_id):
     conn = await asyncpg.connect(**DB_CONFIG)
     try:
+        logging.info(f"Fetching cryptos for user_id={user_id}")
+        
         rows = await conn.fetch(
-            "SELECT crypto_symbol FROM ontime_dangsho WHERE user_id = $1",
+            "SELECT crypto_symbol FROM public.ontime_dangsho WHERE user_id = $1",
             user_id
         )
+        logging.info(f"Fetched {len(rows)} cryptos for user_id={user_id}")
+        
         return [row["crypto_symbol"] for row in rows]
     except Exception as e:
         logging.error(f"Error in get_user_cryptos: {e}")
@@ -307,7 +311,7 @@ async def webhook_update():
 
 # تابع اصلی برای راه‌اندازی برنامه
 async def main():
-    setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
+    create_table_if_not_exists()  # راه‌اندازی دیتابیس در ابتدای برنامه
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(InlineQueryHandler(inline_query))
