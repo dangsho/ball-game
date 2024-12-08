@@ -282,25 +282,32 @@ def get_user_count():
     conn.close()
     return user_count
 
-# هندل پیام‌ها و ثبت کاربران
 async def handle_user(update: Update, context):
-    user_id = update.effective_user.id
-    username = update.effective_user.username
+    # بررسی اینکه آیا effective_user مقدار دارد
+    if update.effective_user is None:
+        logging.warning("Effective user is None. Skipping this update.")
+        return
 
-    # ثبت کاربر در دیتابیس
-    register_user(user_id, username)
+    try:
+        user_id = update.effective_user.id
+        username = update.effective_user.username
 
-    # اگر پیام "user" باشد، تعداد کاربران را نمایش بده
-    if update.message.text.strip().lower() == "user":
-        if user_id == ADMIN_CHAT_ID:  # فقط مدیر اجازه مشاهده دارد
-            user_count = get_user_count()
-            await update.message.reply_text(f"📊 تعداد کاربران: {user_count}")
+        # ثبت کاربر در دیتابیس
+        register_user(user_id, username)
+
+        # اگر پیام "user" باشد، تعداد کاربران را نمایش بده
+        if update.message and update.message.text.strip().lower() == "user":
+            if user_id == ADMIN_CHAT_ID:  # فقط مدیر اجازه مشاهده دارد
+                user_count = get_user_count()
+                await update.message.reply_text(f"📊 تعداد کاربران: {user_count}")
+            else:
+                await update.message.reply_text("⛔ شما مجاز به استفاده از این دستور نیستید.")
         else:
-            await update.message.reply_text("⛔ شما مجاز به استفاده از این دستور نیستید.")
-    else:
-        await get_crypto_price_direct(update, context)
-
+        	await get_crypto_price_direct(update, context)
 # نمایش تعداد کاربران با فرمان /stats
+    except Exception as e:
+        logging.error(f"Error in handle_user: {e}")
+
 async def show_stats(update: Update, context):
     if update.effective_user.id == ADMIN_CHAT_ID:  # فقط مدیر اجازه مشاهده دارد
         user_count = get_user_count()
