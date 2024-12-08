@@ -36,22 +36,6 @@ bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
-@flask_app.route('/')
-    
-async def home():
-    return "سرویس در حال اجرا است 🎉", 200
-
-async def notify_admin(user_id: int, username: str = None):
-    """ارسال پیام اطلاع‌رسانی به مدیر"""
-    try:
-        
-        message = f"🔔 کاربر جدید از ربات استفاده کرد:\n\n👤 آیدی کاربر: {user_id}"
-        if username:
-            message += f"\n📛 نام کاربری: @{username}"
-        await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message)
-        
-    except Exception as e:
-        logging.error(f"Error notifying admin: {e}")
 
 # تابع ارسال قیمت ارزها به کانال تلگرام
 async def send_crypto_prices():
@@ -59,10 +43,8 @@ async def send_crypto_prices():
     try:
         response_message = "💰 قیمت لحظه‌ای ارزهای دیجیتال:\n"
         for crypto_name in CRYPTO_LIST:
-            try:
-                BLOCKED_WORDS = ["USER", "ADD", "DEL", "LIST", "ONTIME", "تاریخ"]
-                if crypto_name.upper() in BLOCKED_WORDS or " " in crypto_name:
-                    continue  # کلمات مسدود شده را رد کنید
+              
+              try: 
                 
                 # دریافت قیمت از API‌ها
                 cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name.upper())
@@ -80,7 +62,7 @@ async def send_crypto_prices():
                         response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
                 else:
                     response_message += f"- {crypto_name.upper()}: ⚠️ قیمت موجود نیست.\n"
-            except Exception as e:
+              except Exception as e:
                 logging.error(f"Error fetching price for {crypto_name}: {e}")
                 response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
 
@@ -95,6 +77,25 @@ def schedule_price_updates():
     scheduler = AsyncIOScheduler()
     scheduler.add_job(send_crypto_prices, "interval", minutes=1)  # اجرای هر 1 دقیقه
     scheduler.start()
+    
+@flask_app.route('/')
+    
+async def home():
+    return "سرویس در حال اجرا است 🎉", 200
+
+async def notify_admin(user_id: int, username: str = None):
+    """ارسال پیام اطلاع‌رسانی به مدیر"""
+    try:
+        
+        message = f"🔔 کاربر جدید از ربات استفاده کرد:\n\n👤 آیدی کاربر: {user_id}"
+        if username:
+            message += f"\n📛 نام کاربری: @{username}"
+        await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message)
+        
+    except Exception as e:
+        logging.error(f"Error notifying admin: {e}")
+
+
     
 def get_usdt_to_irr_price(prls):
     """دریافت قیمت تتر به ریال ایران از نوبیتکس"""
