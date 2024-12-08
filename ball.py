@@ -236,8 +236,20 @@ def get_user_count():
 async def handle_user(update: Update, context):
     user_id = update.effective_user.id
     username = update.effective_user.username
-    register_user(user_id, username)  # ثبت کاربر در دیتابیس
-    await update.message.reply_text("پیام شما دریافت شد! 🎉")
+
+    # ثبت کاربر در دیتابیس
+    register_user(user_id, username)
+
+    # اگر پیام "user" باشد، تعداد کاربران را نمایش بده
+    if update.message.text.strip().lower() == "user":
+        if user_id == ADMIN_CHAT_ID:  # فقط مدیر اجازه مشاهده دارد
+            user_count = get_user_count()
+            await update.message.reply_text(f"📊 تعداد کاربران: {user_count}")
+        else:
+            await update.message.reply_text("⛔ شما مجاز به استفاده از این دستور نیستید.")
+    else:
+        # پاسخ پیش‌فرض به سایر پیام‌ها
+        await update.message.reply_text("پیام شما دریافت شد! 🎉")
 
 # نمایش تعداد کاربران با فرمان /stats
 async def show_stats(update: Update, context):
