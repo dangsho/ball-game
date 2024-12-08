@@ -5,7 +5,6 @@ from telegram.ext import Application, InlineQueryHandler, MessageHandler, filter
 import sqlite3
 import requests
 import asyncio
-import asyncpg
 import logging
 import jdatetime
 import datetime
@@ -24,13 +23,7 @@ logging.basicConfig(
 
 # تنظیمات توکن و دیتابیس
 TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
-DB_CONFIG = {
-    "host": "dpg-ctacug9u0jms73ev4r60-a",  # فقط نام میزبان یا آدرس IP
-    "port": 5432,
-    "user": "ontime_dangsho_user",
-    "password": "EjMvIoNAOQBbU3eqhcvEeGpMlRWEtsQ2",
-    "database": "ontime_dangsho"  # نام پایگاه داده صحیح
-}
+DATABASE = 'game_bot.db'
 ADMIN_CHAT_ID = 48232573
 
 if not TOKEN:
@@ -43,6 +36,17 @@ flask_app = Quart(__name__)
 @flask_app.route('/')
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
+
+async def notify_admin(user_id: int, username: str = None):
+    """ارسال پیام اطلاع‌رسانی به مدیر"""
+    try:
+        message = f"🔔 کاربر جدید از ربات استفاده کرد:\n\n👤 آیدی کاربر: {user_id}"
+        if username:
+            message += f"\n📛 نام کاربری: @{username}"
+        await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message)
+    except Exception as e:
+        logging.error(f"Error notifying admin: {e}")
+
 
 def get_crypto_price_from_coinmarketcap(crypto_symbol):
     symbol = str(crypto_symbol).upper()
@@ -58,7 +62,7 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
         response.raise_for_status()
         data = response.json()
         price = data["data"][symbol]["quote"]["USD"]["price"]
-        return f"{price:,.2f}"
+        return price  # حذف فرمت‌بندی
     except requests.RequestException as e:
         logging.error(f"Error fetching data from CoinMarketCap: {e}")
         return None
@@ -77,36 +81,44 @@ def get_usdt_to_irr_price(prls):
         logging.error(f"Error fetching data from Nobitex: {e}")
         return None
 
+
 async def get_crypto_price_direct(update: Update, context):
     """ارسال قیمت ارز دیجیتال با ارسال مستقیم نام ارز"""
+
     try:
-        # جداسازی متن ورودی
         crypto_name = update.message.text.strip().upper()
+        # ارسال اطلاع‌رسانی به مدیر
+        await notify_admin(
+            user_id=update.message.from_user.id, username=update.message.from_user.username
+        )
         
-        # اطمینان از اینکه ورودی یک نام معتبر ارز است
         if " " in crypto_name or crypto_name.startswith(("add", "del", "list")):
             return  # اگر دستور نامعتبر باشد، تابع را ترک کن
 
-        # دریافت قیمت از API
         cmc_price = get_crypto_price_from_coinmarketcap(crypto_name)
         nobitex_price = get_usdt_to_irr_price(crypto_name.lower())
 
-        # پاسخ به کاربر
         if cmc_price or nobitex_price:
             response_message = f"💰 قیمت {crypto_name}:\n"
             if cmc_price:
-                response_message += f"- کوین مارکت کپ: ${cmc_price}\n"
+                response_message += f"- کوین مارکت کپ: ${cmc_price:.8f}\n"  # نمایش با تمام ارقام اعشار
             if nobitex_price:
                 response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
             await update.message.reply_text(response_message)
         else:
-            await update.message.reply_text("❌ ارز وارد شده پیدا نشد یا نامعتبر است.")
+            return
     except Exception as e:
         logging.error(f"Error in direct price fetch: {e}")
-        await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+        
 
 async def inline_query(update: Update, context):
     try:
+        
+        # بررسی وجود inline_query
+        if not update.inline_query:
+            logging.error("Inline query is None.")
+            return
+            
         # تنظیمات زمان و تاریخ
         tehran_tz = timezone("Asia/Tehran")
         tehran_time = datetime.datetime.now(tehran_tz)
@@ -114,6 +126,7 @@ async def inline_query(update: Update, context):
         gregorian_date = tehran_time.strftime("%Y-%m-%d")
         islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
         hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
+
 
         # دریافت قیمت‌ها از CoinMarketCap و Nobitex
         bitcoin_price = get_crypto_price_from_coinmarketcap('BTC')
@@ -153,128 +166,80 @@ async def inline_query(update: Update, context):
                 description="ارسال تاریخ و قیمت‌ ارزها به چت"
             )
         ]
+ 
+        
         await update.inline_query.answer(results, cache_time=10)
     except Exception as e:
         logging.error(f"Error in inline query handler: {e}")
 
 
-# تابع واحد برای ایجاد جدول
-async def create_table_if_not_exists():
-    conn = await asyncpg.connect(**DB_CONFIG)
-    try:
-        # ایجاد جدول در صورت عدم وجود
-        await conn.execute("""
-            CREATE TABLE public.ontime_dangsho (
-    user_id SERIAL PRIMARY KEY,
-    crypto_symbol VARCHAR(255) NOT NULL
-);
-            );
-        """)
-        logging.info("Table 'ontime_dangsho' created or already exists.")
-    except Exception as e:
-        logging.error(f"Error in create_table_if_not_exists: {e}")
-        raise
-    finally:
-        await conn.close()
+# مدیریت لیست ارزها برای کاربران
+def setup_database():
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    # جدول لیست ارزهای کاربران
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS user_cryptos (
+            user_id INTEGER,
+            crypto_symbol TEXT,
+            PRIMARY KEY (user_id, crypto_symbol)
+        )
+    ''')
+    # جدول سایر داده‌ها
+    c.execute('''CREATE TABLE IF NOT EXISTS game_sessions
+                 (unique_id TEXT, user_id INTEGER, game_short_name TEXT, inline_message_id TEXT)''')
+    conn.commit()
+    conn.close()
 
 # اضافه کردن ارز به لیست کاربر
-async def add_crypto(user_id, crypto_symbol):
-    conn = await asyncpg.connect(**DB_CONFIG)
-    try:
-        # لاگ‌گیری پیش از درج
-        logging.info(f"Attempting to insert user_id={user_id}, crypto_symbol={crypto_symbol}")
-        
-        await conn.execute(
-            "INSERT INTO public.ontime_dangsho (user_id, crypto_symbol) VALUES ($1, $2)",
-            user_id, crypto_symbol
-        )
-        logging.info("Insert successful")
-    except Exception as e:
-        logging.error(f"Error in add_crypto: {e}")
-        raise
-    finally:
-        await conn.close()
-
-# حذف ارز از لیست کاربر
-async def delete_crypto(user_id, crypto_symbol):
-    conn = await asyncpg.connect(**DB_CONFIG)
-    try:
-        logging.info(f"Attempting to delete user_id={user_id}, crypto_symbol={crypto_symbol}")
-        
-        await conn.execute(
-            "DELETE FROM public.ontime_dangsho WHERE user_id = $1 AND crypto_symbol = $2",
-            user_id, crypto_symbol
-        )
-        logging.info("Delete successful")
-    except Exception as e:
-        logging.error(f"Error in delete_crypto: {e}")
-        raise
-    finally:
-        await conn.close()
-
-# دریافت لیست ارزهای کاربر
-async def get_user_cryptos(user_id):
-    conn = await asyncpg.connect(**DB_CONFIG)
-    try:
-        logging.info(f"Fetching cryptos for user_id={user_id}")
-        
-        rows = await conn.fetch(
-            "SELECT crypto_symbol FROM public.ontime_dangsho WHERE user_id = $1",
-            user_id
-        )
-        logging.info(f"Fetched {len(rows)} cryptos for user_id={user_id}")
-        
-        return [row["crypto_symbol"] for row in rows]
-    except Exception as e:
-        logging.error(f"Error in get_user_cryptos: {e}")
-        raise
-    finally:
-        await conn.close()
-
-# مدیریت دستورات
+# تغییر توابع مدیریت add، del، و list به MessageHandler
 async def handle_message(update: Update, context):
-    try:
+    
+    try:    
+            
+        
         message = update.message.text.strip().split(maxsplit=1)
-        command = message[0].lower()
-        argument = message[1].upper() if len(message) > 1 else None
+        command = message[0].lower()  # استخراج دستور (add, del, list)
+        argument = message[1].upper() if len(message) > 1 else None  # استخراج نام ارز (در صورت وجود)
+
         user_id = update.effective_user.id
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
 
         if command == "add":
             if not argument:
                 await update.message.reply_text("❗️ دستور صحیح: add <نام_ارز>")
                 return
-            await add_crypto(user_id, argument)
+            c.execute("INSERT OR IGNORE INTO user_cryptos (user_id, crypto_symbol) VALUES (?, ?)", (user_id, argument))
+            conn.commit()
             await update.message.reply_text(f"✅ ارز {argument} به لیست شما اضافه شد.")
         
         elif command == "del":
             if not argument:
                 await update.message.reply_text("❗️ دستور صحیح: del <نام_ارز>")
                 return
-            await delete_crypto(user_id, argument)
+            c.execute("DELETE FROM user_cryptos WHERE user_id = ? AND crypto_symbol = ?", (user_id, argument))
+            conn.commit()
             await update.message.reply_text(f"✅ ارز {argument} از لیست شما حذف شد.")
         
         elif command == "list":
-            cryptos = await get_user_cryptos(user_id)
+            c.execute("SELECT crypto_symbol FROM user_cryptos WHERE user_id = ?", (user_id,))
+            cryptos = [row[0] for row in c.fetchall()]
             if not cryptos:
                 await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
-                return
-            response = "💰 لیست ارزهای شما:\n"
-            for crypto in cryptos:
-                # دریافت قیمت‌ها
-                cmc_price = get_crypto_price_from_coinmarketcap(crypto)
-                nobitex_price = get_usdt_to_irr_price(crypto.lower())
-                response += f"- {crypto}:\n"
-                if cmc_price:
-                    response += f"  🌐 قیمت جهانی: ${cmc_price}\n"
-                if nobitex_price:
-                    response += f"  🇮🇷 قیمت نوبیتکس: {nobitex_price:,} ریال\n"
-                if not cmc_price and not nobitex_price:
-                    response += "  ⛔ قیمت نامشخص\n"
-            await update.message.reply_text(response)
+            else:
+                response = "💰 لیست ارزهای شما:\n"
+                for crypto in cryptos:
+                    price = get_crypto_price_from_coinmarketcap(crypto)
+                    response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
+                await update.message.reply_text(response)
         
         else:
             # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
             await get_crypto_price_direct(update, context)
+
+        conn.close()
+
     except Exception as e:
         logging.error(f"Error in handle_message: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
@@ -311,7 +276,7 @@ async def webhook_update():
 
 # تابع اصلی برای راه‌اندازی برنامه
 async def main():
-    create_table_if_not_exists()  # راه‌اندازی دیتابیس در ابتدای برنامه
+    setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(InlineQueryHandler(inline_query))
