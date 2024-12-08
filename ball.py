@@ -37,37 +37,6 @@ application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
 @flask_app.route('/')
-
-
-# تابع ارسال قیمت ارزها به کانال تلگرام
-async def send_crypto_prices():
-    try:
-        response_message = "💰 قیمت لحظه‌ای ارزهای دیجیتال:\n"
-        for crypto in CRYPTO_LIST:
-            try:
-                # دریافت قیمت از API (تابع خودتان را فراخوانی کنید)
-                cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto)
-                if cmc_price is not None:
-                    arrow = "🟢" if percent_change_24h > 0 else "🔴"
-                    response_message += (
-                        f"- {crypto}: ${cmc_price:.2f} {arrow} {abs(percent_change_24h):.2f}%\n"
-                    )
-                else:
-                    response_message += f"- {crypto}: ⚠️ قیمت موجود نیست.\n"
-            except Exception as e:
-                logging.error(f"Error fetching price for {crypto}: {e}")
-                response_message += f"- {crypto}: ⚠️ خطا در دریافت قیمت.\n"
-        
-        # ارسال پیام به کانال تلگرام
-        await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
-    except Exception as e:
-        logging.error(f"Error in send_crypto_prices: {e}")
-
-# زمان‌بندی ارسال قیمت‌ها هر 1 دقیقه
-def schedule_price_updates():
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(send_crypto_prices, "interval", minutes=1)  # اجرای هر 1 دقیقه
-    scheduler.start()
     
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
@@ -84,7 +53,43 @@ async def notify_admin(user_id: int, username: str = None):
     except Exception as e:
         logging.error(f"Error notifying admin: {e}")
 
+# تابع ارسال قیمت ارزها به کانال تلگرام
+async def send_crypto_prices():
+    """ارسال قیمت ارزها به کانال تلگرام هر یک دقیقه"""
+    try:
+        response_message = "💰 قیمت لحظه‌ای ارزهای دیجیتال:\n"
+        for crypto_name in CRYPTO_LIST:
+            try:
+                BLOCKED_WORDS = ["USER", "ADD", "DEL", "LIST", "ONTIME", "تاریخ"]
+                if crypto_name.upper() in BLOCKED_WORDS or " " in crypto_name:
+                    continue  # کلمات مسدود شده را رد کنید
+                
+                # دریافت قیمت از API‌ها
+                cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name.upper())
+                nobitex_price = get_usdt_to_irr_price(crypto_name.lower())
 
+                # ساخت پیام برای هر ارز
+                if cmc_price or nobitex_price:
+                    response_message += f"💰 قیمت {crypto_name.upper()}:\n"
+                    if cmc_price is not None:
+                        arrow = "🟢" if percent_change_24h > 0 else "🔴"
+                        response_message += (
+                            f"- کوین مارکت کپ: ${float(cmc_price):.2f} {arrow} {abs(float(percent_change_24h)):.2f}%\n"
+                        )
+                    if nobitex_price:
+                        response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
+                else:
+                    response_message += f"- {crypto_name.upper()}: ⚠️ قیمت موجود نیست.\n"
+            except Exception as e:
+                logging.error(f"Error fetching price for {crypto_name}: {e}")
+                response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
+
+        # ارسال پیام نهایی به کانال
+        await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
+    except Exception as e:
+        logging.error(f"Error in send_crypto_prices: {e}")
+        
+        
 def get_usdt_to_irr_price(prls):
     """دریافت قیمت تتر به ریال ایران از نوبیتکس"""
     try:
