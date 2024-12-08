@@ -205,9 +205,49 @@ def setup_database():
     # جدول سایر داده‌ها
     c.execute('''CREATE TABLE IF NOT EXISTS game_sessions
                  (unique_id TEXT, user_id INTEGER, game_short_name TEXT, inline_message_id TEXT)''')
+    # جدول کاربران
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
 
+# ثبت کاربران در دیتابیس
+def register_user(user_id, username):
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    c.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)", (user_id, username))
+    conn.commit()
+    conn.close()
+
+# شمارش کاربران
+def get_user_count():
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM users")
+    user_count = c.fetchone()[0]
+    conn.close()
+    return user_count
+
+# هندل پیام‌ها و ثبت کاربران
+async def handle_user(update: Update, context):
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    register_user(user_id, username)  # ثبت کاربر در دیتابیس
+    await update.message.reply_text("پیام شما دریافت شد! 🎉")
+
+# نمایش تعداد کاربران با فرمان /stats
+async def show_stats(update: Update, context):
+    if update.effective_user.id == ADMIN_CHAT_ID:  # فقط مدیر اجازه مشاهده دارد
+        user_count = get_user_count()
+        await update.message.reply_text(f"📊 تعداد کاربران: {user_count}")
+    else:
+        await update.message.reply_text("⛔ شما مجاز به استفاده از این دستور نیستید.")
+        
+        
 # اضافه کردن ارز به لیست کاربر
 # تغییر توابع مدیریت add، del، و list به MessageHandler
 async def handle_message(update: Update, context):
@@ -296,6 +336,9 @@ async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user))
+    application.add_handler(CommandHandler("stats", show_stats))
+    
     application.add_handler(InlineQueryHandler(inline_query))
 
     
