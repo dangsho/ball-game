@@ -164,10 +164,10 @@ async def create_table_if_not_exists():
     try:
         # ایجاد جدول در صورت عدم وجود
         await conn.execute("""
-            CREATE TABLE IF NOT EXISTS public.ontime_dangsho (
-                user_id BIGINT NOT NULL,
-                crypto_symbol TEXT NOT NULL,
-                PRIMARY KEY (user_id, crypto_symbol)
+            CREATE TABLE public.ontime_dangsho (
+    user_id SERIAL PRIMARY KEY,
+    crypto_symbol VARCHAR(255) NOT NULL
+);
             );
         """)
         logging.info("Table 'ontime_dangsho' created or already exists.")
