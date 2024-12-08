@@ -85,9 +85,10 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
 
         # محدود کردن اعشار بر اساس شرط
         if price > 1:
-            price = round(price, 2)  # 2 رقم اعشار برای قیمت بالای 1 دلار
+            price = f"{price:.2f}"  # 2 رقم اعشار برای قیمت بالای 1 دلار
         else:
-            price = round(price, 8)  # 8 رقم اعشار برای قیمت‌های کوچک‌تر
+            price = f"{price:.8f}"  # 8 رقم اعشار برای قیمت‌های کوچک‌تر
+
 
         return price, percent_change_24h
     except requests.RequestException as e:
