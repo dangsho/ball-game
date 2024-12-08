@@ -170,30 +170,62 @@ async def setup_database():
     ''')
     await conn.close()
 
+# ایجاد جدول در اولین اجرا
+async def create_table_if_not_exists():
+    conn = await asyncpg.connect(**DB_CONFIG)
+    try:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_cryptos (
+                user_id BIGINT NOT NULL,
+                crypto_symbol VARCHAR(50) NOT NULL,
+                PRIMARY KEY (user_id, crypto_symbol)
+            );
+        """)
+    finally:
+        await conn.close()
+
 # اضافه کردن ارز به لیست کاربر
 async def add_crypto(user_id, crypto_symbol):
     conn = await asyncpg.connect(**DB_CONFIG)
-    await conn.execute(
-        "INSERT INTO user_cryptos (user_id, crypto_symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-        user_id, crypto_symbol
-    )
-    await conn.close()
+    try:
+        await conn.execute(
+            "INSERT INTO user_cryptos (user_id, crypto_symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            user_id, crypto_symbol
+        )
+    except Exception as e:
+        logging.error(f"Error in add_crypto: {e}")
+        raise
+    finally:
+        await conn.close()
 
 # حذف ارز از لیست کاربر
 async def delete_crypto(user_id, crypto_symbol):
     conn = await asyncpg.connect(**DB_CONFIG)
-    await conn.execute(
-        "DELETE FROM user_cryptos WHERE user_id = $1 AND crypto_symbol = $2",
-        user_id, crypto_symbol
-    )
-    await conn.close()
+    try:
+        await conn.execute(
+            "DELETE FROM user_cryptos WHERE user_id = $1 AND crypto_symbol = $2",
+            user_id, crypto_symbol
+        )
+    except Exception as e:
+        logging.error(f"Error in delete_crypto: {e}")
+        raise
+    finally:
+        await conn.close()
 
 # دریافت لیست ارزهای کاربر
 async def get_user_cryptos(user_id):
     conn = await asyncpg.connect(**DB_CONFIG)
-    rows = await conn.fetch("SELECT crypto_symbol FROM user_cryptos WHERE user_id = $1", user_id)
-    await conn.close()
-    return [row["crypto_symbol"] for row in rows]
+    try:
+        rows = await conn.fetch(
+            "SELECT crypto_symbol FROM user_cryptos WHERE user_id = $1",
+            user_id
+        )
+        return [row["crypto_symbol"] for row in rows]
+    except Exception as e:
+        logging.error(f"Error in get_user_cryptos: {e}")
+        raise
+    finally:
+        await conn.close()
 
 # مدیریت دستورات
 async def handle_message(update: Update, context):
