@@ -88,8 +88,14 @@ async def send_crypto_prices():
         await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
     except Exception as e:
         logging.error(f"Error in send_crypto_prices: {e}")
-        
-        
+
+
+# زمان‌بندی ارسال قیمت‌ها هر 1 دقیقه
+def schedule_price_updates():
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(send_crypto_prices, "interval", minutes=1)  # اجرای هر 1 دقیقه
+    scheduler.start()
+    
 def get_usdt_to_irr_price(prls):
     """دریافت قیمت تتر به ریال ایران از نوبیتکس"""
     try:
