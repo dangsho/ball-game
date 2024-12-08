@@ -104,7 +104,7 @@ async def get_crypto_price_direct(update: Update, context):
             user_id=update.message.from_user.id, username=update.message.from_user.username
         )
         
-        if " " in crypto_name or crypto_name.startswith(("add", "del", "list", 'user', 'ontime', 'تاریخ')):
+        if " " in crypto_name or crypto_name.startswith(("add", "del", "list", "user", "ontime", "تاریخ")):
             return
 
         cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name)
