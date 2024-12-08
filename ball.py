@@ -250,8 +250,7 @@ async def handle_user(update: Update, context):
         else:
             await update.message.reply_text("⛔ شما مجاز به استفاده از این دستور نیستید.")
     else:
-        # پاسخ پیش‌فرض به سایر پیام‌ها
-        await update.message.reply_text("پیام شما دریافت شد! 🎉")
+        await get_crypto_price_direct(update, context)
 
 # نمایش تعداد کاربران با فرمان /stats
 async def show_stats(update: Update, context):
