@@ -185,7 +185,7 @@ async def add_crypto(user_id, crypto_symbol):
         logging.info(f"Attempting to insert user_id={user_id}, crypto_symbol={crypto_symbol}")
         
         await conn.execute(
-            "INSERT INTO public.ontime_dangsho (user_id, crypto_symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            "INSERT INTO public.ontime_dangsho (user_id, crypto_symbol) VALUES ($1, $2)",
             user_id, crypto_symbol
         )
         logging.info("Insert successful")
