@@ -38,35 +38,25 @@ flask_app = Quart(__name__)
 
 
 # تابع ارسال قیمت ارزها به کانال تلگرام
+
+# --- تابع ارسال قیمت‌ها به کانال ---
 async def send_crypto_prices():
-    """ارسال قیمت ارزها به کانال تلگرام هر یک دقیقه"""
     try:
         response_message = "💰 قیمت لحظه‌ای ارزهای دیجیتال:\n"
         for crypto_name in CRYPTO_LIST:
-              
-              try: 
-                
-                # دریافت قیمت از API‌ها
+            try:
                 cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name.upper())
-                nobitex_price = get_usdt_to_irr_price(crypto_name.lower())
-
-                # ساخت پیام برای هر ارز
-                if cmc_price or nobitex_price:
-                    response_message += f"💰 قیمت {crypto_name.upper()}:\n"
-                    if cmc_price is not None:
-                        arrow = "🟢" if percent_change_24h > 0 else "🔴"
-                        response_message += (
-                            f"- کوین مارکت کپ: ${float(cmc_price):.2f} {arrow} {abs(float(percent_change_24h)):.2f}%\n"
-                        )
-                    if nobitex_price:
-                        response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
+                if cmc_price:
+                    arrow = "🟢" if percent_change_24h > 0 else "🔴"
+                    response_message += (
+                        f"- {crypto_name.upper()}: ${cmc_price:.2f} {arrow} {abs(percent_change_24h):.2f}%\n"
+                    )
                 else:
                     response_message += f"- {crypto_name.upper()}: ⚠️ قیمت موجود نیست.\n"
-              except Exception as e:
+            except Exception as e:
                 logging.error(f"Error fetching price for {crypto_name}: {e}")
                 response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
 
-        # ارسال پیام نهایی به کانال
         await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
     except Exception as e:
         logging.error(f"Error in send_crypto_prices: {e}")
@@ -423,12 +413,7 @@ if __name__ == '__main__':
     asyncio.run(main())
     
     logging.basicConfig(level=logging.INFO)
-    
-    # شروع لوپ asyncio
-    loop = asyncio.get_event_loop()
-    
-    # اجرای زمان‌بندی
+ 
+    # اجرای زمان‌بنی
     schedule_price_updates()
     
-    # شروع لوپ
-    loop.run_forever()
