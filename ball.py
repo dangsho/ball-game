@@ -48,24 +48,7 @@ async def notify_admin(user_id: int, username: str = None):
         logging.error(f"Error notifying admin: {e}")
 
 
-def get_crypto_price_from_coinmarketcap(crypto_symbol):
-    symbol = str(crypto_symbol).upper()
-    """دریافت قیمت ارز دیجیتال از CoinMarketCap"""
-    try:
-        url = f"https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
-        headers = {
-            "X-CMC_PRO_API_KEY": "8baeefe8-4a9f-4947-8a9d-7f8ea40d91d3",
-            "Accept": "application/json",
-        }
-        params = {"symbol": symbol, "convert": "USD"}
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        data = response.json()
-        price = data["data"][symbol]["quote"]["USD"]["price"]
-        return price  # حذف فرمت‌بندی
-    except requests.RequestException as e:
-        logging.error(f"Error fetching data from CoinMarketCap: {e}")
-        return None
+
 
 def get_usdt_to_irr_price(prls):
     """دریافت قیمت تتر به ریال ایران از نوبیتکس"""
@@ -82,33 +65,66 @@ def get_usdt_to_irr_price(prls):
         return None
 
 
+def get_crypto_price_from_coinmarketcap(crypto_symbol):
+    symbol = str(crypto_symbol).upper()
+    """دریافت قیمت ارز دیجیتال از CoinMarketCap"""
+    try:
+        url = f"https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+        headers = {
+            "X-CMC_PRO_API_KEY": "8baeefe8-4a9f-4947-8a9d-7f8ea40d91d3",
+            "Accept": "application/json",
+        }
+        params = {"symbol": symbol, "convert": "USD"}
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        # دریافت قیمت و درصد تغییرات 24 ساعته
+        price = data["data"][symbol]["quote"]["USD"]["price"]
+        percent_change_24h = data["data"][symbol]["quote"]["USD"]["percent_change_24h"]
+
+        # محدود کردن اعشار بر اساس شرط
+        if price > 1:
+            price = round(price, 2)  # 2 رقم اعشار برای قیمت بالای 1 دلار
+        else:
+            price = round(price, 8)  # 8 رقم اعشار برای قیمت‌های کوچک‌تر
+
+        return price, percent_change_24h
+    except requests.RequestException as e:
+        logging.error(f"Error fetching data from CoinMarketCap: {e}")
+        return None, None
+
+
 async def get_crypto_price_direct(update: Update, context):
     """ارسال قیمت ارز دیجیتال با ارسال مستقیم نام ارز"""
-
     try:
         crypto_name = update.message.text.strip().upper()
-        # ارسال اطلاع‌رسانی به مدیر
         await notify_admin(
             user_id=update.message.from_user.id, username=update.message.from_user.username
         )
         
         if " " in crypto_name or crypto_name.startswith(("add", "del", "list")):
-            return  # اگر دستور نامعتبر باشد، تابع را ترک کن
+            return
 
-        cmc_price = get_crypto_price_from_coinmarketcap(crypto_name)
+        cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name)
         nobitex_price = get_usdt_to_irr_price(crypto_name.lower())
 
         if cmc_price or nobitex_price:
             response_message = f"💰 قیمت {crypto_name}:\n"
-            if cmc_price:
-                response_message += f"- کوین مارکت کپ: ${cmc_price:.8f}\n"  # نمایش با تمام ارقام اعشار
+            if cmc_price is not None:
+                # اضافه کردن فلش سبز یا قرمز
+                arrow = "🔼" if percent_change_24h > 0 else "🔽"
+                response_message += (
+                    f"- کوین مارکت کپ: ${cmc_price} {arrow} {abs(percent_change_24h):.2f}%\n"
+                )
             if nobitex_price:
                 response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
             await update.message.reply_text(response_message)
         else:
-            return
+            await update.message.reply_text("⚠️ ارز یافت نشد. لطفاً دوباره تلاش کنید.")
     except Exception as e:
         logging.error(f"Error in direct price fetch: {e}")
+        
         
 
 async def inline_query(update: Update, context):
