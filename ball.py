@@ -1,4 +1,4 @@
-#pylint:disable= 'invalid syntax (<unknown>, line 127)'
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import os
 from quart import Quart, request
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
@@ -26,6 +26,8 @@ logging.basicConfig(
 TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 DATABASE = 'game_bot.db'
 ADMIN_CHAT_ID = 48232573
+CHANNEL_ID = "@coin_btcc"  # آیدی کانال تلگرام (باید با @ شروع شود)
+CRYPTO_LIST = ["BTC", "ETH", "DOGS", "NOT", "X", "MAJOR", "MEMEFI", "RBTC", "GOATS"]  # لیست ارزهایی که قیمت آن‌ها ارسال می‌شود
 
 if not TOKEN:
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
@@ -35,16 +37,50 @@ application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
 @flask_app.route('/')
+
+
+# تابع ارسال قیمت ارزها به کانال تلگرام
+async def send_crypto_prices():
+    try:
+        response_message = "💰 قیمت لحظه‌ای ارزهای دیجیتال:\n"
+        for crypto in CRYPTO_LIST:
+            try:
+                # دریافت قیمت از API (تابع خودتان را فراخوانی کنید)
+                cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto)
+                if cmc_price is not None:
+                    arrow = "🟢" if percent_change_24h > 0 else "🔴"
+                    response_message += (
+                        f"- {crypto}: ${cmc_price:.2f} {arrow} {abs(percent_change_24h):.2f}%\n"
+                    )
+                else:
+                    response_message += f"- {crypto}: ⚠️ قیمت موجود نیست.\n"
+            except Exception as e:
+                logging.error(f"Error fetching price for {crypto}: {e}")
+                response_message += f"- {crypto}: ⚠️ خطا در دریافت قیمت.\n"
+        
+        # ارسال پیام به کانال تلگرام
+        await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
+    except Exception as e:
+        logging.error(f"Error in send_crypto_prices: {e}")
+
+# زمان‌بندی ارسال قیمت‌ها هر 1 دقیقه
+def schedule_price_updates():
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(send_crypto_prices, "interval", minutes=1)  # اجرای هر 1 دقیقه
+    scheduler.start()
+    
 async def home():
     return "سرویس در حال اجرا است 🎉", 200
 
 async def notify_admin(user_id: int, username: str = None):
     """ارسال پیام اطلاع‌رسانی به مدیر"""
     try:
+        
         message = f"🔔 کاربر جدید از ربات استفاده کرد:\n\n👤 آیدی کاربر: {user_id}"
         if username:
             message += f"\n📛 نام کاربری: @{username}"
         await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message)
+        
     except Exception as e:
         logging.error(f"Error notifying admin: {e}")
 
@@ -366,3 +402,14 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+    
+    logging.basicConfig(level=logging.INFO)
+    
+    # شروع لوپ asyncio
+    loop = asyncio.get_event_loop()
+    
+    # اجرای زمان‌بندی
+    schedule_price_updates()
+    
+    # شروع لوپ
+    loop.run_forever()
