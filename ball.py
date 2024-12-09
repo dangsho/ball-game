@@ -358,14 +358,21 @@ async def show_stats(update: Update, context):
 # اضافه کردن ارز به لیست کاربر
 
 
+
+# نام فایل ذخیره‌سازی
 def get_user_file(user_id):
     return f"user_{user_id}.json"
 
-def save_user_cryptos(user_id, cryptos):
+# ذخیره لیست و ارسال آن به چت
+async def save_and_send_user_cryptos(user_id, cryptos, update):
     file_path = get_user_file(user_id)
     with open(file_path, "w") as f:
-        json.dump(cryptos, f)
+        json.dump(cryptos, f, ensure_ascii=False, indent=4)
 
+    await update.message.reply_text("✅ لیست ارزهای شما به‌روزرسانی شد.")
+    await update.message.reply_document(InputFile(file_path))
+
+# بارگذاری لیست از فایل
 def load_user_cryptos(user_id):
     file_path = get_user_file(user_id)
     if os.path.exists(file_path):
@@ -373,11 +380,12 @@ def load_user_cryptos(user_id):
             return json.load(f)
     return []
 
+# مدیریت پیام‌ها
 async def handle_message(update: Update, context):
     try:
         message = update.message.text.strip().split(maxsplit=1)
-        command = message[0].lower()  
-        argument = message[1].upper() if len(message) > 1 else None  
+        command = message[0].lower()
+        argument = message[1].upper() if len(message) > 1 else None
 
         user_id = update.effective_user.id
         user_cryptos = load_user_cryptos(user_id)
@@ -386,11 +394,10 @@ async def handle_message(update: Update, context):
             if not argument:
                 await update.message.reply_text("❗️ دستور صحیح: add <نام_ارز>")
                 return
-            
+
             if argument not in user_cryptos:
                 user_cryptos.append(argument)
-                save_user_cryptos(user_id, user_cryptos)
-                await update.message.reply_text(f"✅ ارز {argument} به لیست شما اضافه شد.")
+                await save_and_send_user_cryptos(user_id, user_cryptos, update)
             else:
                 await update.message.reply_text(f"⚠️ ارز {argument} قبلاً در لیست شما وجود دارد.")
 
@@ -398,11 +405,10 @@ async def handle_message(update: Update, context):
             if not argument:
                 await update.message.reply_text("❗️ دستور صحیح: del <نام_ارز>")
                 return
-            
+
             if argument in user_cryptos:
                 user_cryptos.remove(argument)
-                save_user_cryptos(user_id, user_cryptos)
-                await update.message.reply_text(f"✅ ارز {argument} از لیست شما حذف شد.")
+                await save_and_send_user_cryptos(user_id, user_cryptos, update)
             else:
                 await update.message.reply_text(f"⚠️ ارز {argument} در لیست شما یافت نشد.")
 
@@ -413,19 +419,19 @@ async def handle_message(update: Update, context):
                 response = "💰 لیست ارزهای شما:\n"
                 for crypto in user_cryptos:
                     await fetch_and_send_crypto_price(update, context, crypto)
-        
+
         else:
+  
                         # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
           await get_crypto_price_direct(update, context)
-    
+
     except Exception as e:
         logging.error(f"Error in handle_message: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
 
-# تابع کمکی برای گرفتن قیمت و ارسال آن به چت
+# تابع قیمت ارز
 async def fetch_and_send_crypto_price(update, context, crypto_name):
     class MockUpdate:
-        """ایجاد نمونه جعلی برای فراخوانی تابع get_crypto_price_direct"""
         def __init__(self, user_id, username, text):
             self.message = MockMessage(user_id, username, text)
 
@@ -440,7 +446,7 @@ async def fetch_and_send_crypto_price(update, context, crypto_name):
             self.username = username
 
     mock_update = MockUpdate(update.effective_user.id, update.effective_user.username, crypto_name)
-    await get_crypto_price_direct(mock_update, context)                        
+    await get_crypto_price_direct(mock_update, context)
 
 #_________---++--++++--________
 
