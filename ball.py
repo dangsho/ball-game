@@ -95,30 +95,7 @@ async def notify_admin(user_id: int, username: str = None):
 
 
 
-async def is_user_subscribed(user_id: int) -> bool:
-    """بررسی عضویت کاربر در کانال"""
-    try:
-        chat_member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
-        
-        # بررسی وضعیت کاربر در کانال
-        return chat_member.status in ["member", "administrator", "creator"]
-    except Exception as e:
-        logging.error(f"Error checking subscription for user {user_id}: {e}")
-        return False
 
-
-# تابع مدیریت پیام‌ها با بررسی عضویت
-async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-
-    if await is_user_subscribed(user_id):
-        await update.message.reply_text("✅ شما در کانال عضو هستید، می‌توانید از ربات استفاده کنید.")
-        await get_crypto_price_direct(update, context)
-    else:
-        await update.message.reply_text(
-            f"❌ شما در کانال عضو نیستید.\n"
-            f"لطفاً ابتدا در کانال عضو شوید:\n{CHANNEL_ID}"
-        )
 
     
 def get_usdt_to_irr_price(prls):
@@ -430,7 +407,6 @@ async def main():
 # مدیریت پیام‌های خاص "user"
     application.add_handler(MessageHandler(filters.Regex(r'^user$'), handle_user))
 
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_message))
 
 # مدیریت سایر پیام‌های متنی
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
