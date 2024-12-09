@@ -376,11 +376,10 @@ def load_user_cryptos(user_id):
 async def handle_message(update: Update, context):
     try:
         message = update.message.text.strip().split(maxsplit=1)
-        command = message[0].lower()
-        argument = message[1].upper() if len(message) > 1 else None
+        command = message[0].lower()  
+        argument = message[1].upper() if len(message) > 1 else None  
 
         user_id = update.effective_user.id
-        user_file = get_user_file(user_id)
         user_cryptos = load_user_cryptos(user_id)
 
         if command == "add":
@@ -406,25 +405,43 @@ async def handle_message(update: Update, context):
                 await update.message.reply_text(f"✅ ارز {argument} از لیست شما حذف شد.")
             else:
                 await update.message.reply_text(f"⚠️ ارز {argument} در لیست شما یافت نشد.")
-        
+
         elif command == "list":
             if not user_cryptos:
                 await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
             else:
                 response = "💰 لیست ارزهای شما:\n"
                 for crypto in user_cryptos:
-                    price = get_crypto_price_from_coinmarketcap(crypto)
-                    response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
-                await update.message.reply_text(response)
+                    await fetch_and_send_crypto_price(update, context, crypto)
         
         else:
-                        
                         # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
           await get_crypto_price_direct(update, context)
     
     except Exception as e:
         logging.error(f"Error in handle_message: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+
+# تابع کمکی برای گرفتن قیمت و ارسال آن به چت
+async def fetch_and_send_crypto_price(update, context, crypto_name):
+    class MockUpdate:
+        """ایجاد نمونه جعلی برای فراخوانی تابع get_crypto_price_direct"""
+        def __init__(self, user_id, username, text):
+            self.message = MockMessage(user_id, username, text)
+
+    class MockMessage:
+        def __init__(self, user_id, username, text):
+            self.text = text
+            self.from_user = MockUser(user_id, username)
+
+    class MockUser:
+        def __init__(self, user_id, username):
+            self.id = user_id
+            self.username = username
+
+    mock_update = MockUpdate(update.effective_user.id, update.effective_user.username, crypto_name)
+    await get_crypto_price_direct(mock_update, context)                        
+
 #_________---++--++++--________
 
 
