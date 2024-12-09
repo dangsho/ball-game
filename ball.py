@@ -392,9 +392,11 @@ async def webhook_update():
 # تابع اصلی برای راه‌اندازی برنامه
 async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
-    
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user))
-    
+  
+# مدیریت پیام‌های خاص "user"
+    application.add_handler(MessageHandler(filters.Regex(r'^user$'), handle_user))
+
+# مدیریت سایر پیام‌های متنی
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     application.add_handler(CommandHandler("stats", show_stats))
@@ -403,6 +405,8 @@ async def main():
 
     
     await set_webhook()
+        # اجرای زمان‌بنی
+    schedule_price_updates()
     await application.initialize()
     asyncio.create_task(application.start())
 
@@ -414,6 +418,5 @@ if __name__ == '__main__':
     
     logging.basicConfig(level=logging.INFO)
  
-    # اجرای زمان‌بنی
-    schedule_price_updates()
+
     
