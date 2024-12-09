@@ -252,9 +252,7 @@ async def inline_query(update: Update, context):
 
 # ایجاد پوشه بک‌آپ در صورت عدم وجود
 os.makedirs(BACKUP_DIR, exist_ok=True)
-os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
 
-print(f"Database path: {DATABASE}")
 print(f"Backup directory path: {BACKUP_DIR}")
 
 def backup_database():
