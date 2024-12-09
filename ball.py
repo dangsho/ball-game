@@ -93,11 +93,15 @@ async def notify_admin(user_id: int, username: str = None):
     except Exception as e:
         logging.error(f"Error notifying admin: {e}")
 
+
+
 async def is_user_subscribed(user_id: int) -> bool:
     """بررسی عضویت کاربر در کانال"""
     try:
         chat_member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
-        return chat_member.is_active  # بررسی عضویت کاربر در کانال
+        
+        # بررسی وضعیت کاربر در کانال
+        return chat_member.status in ["member", "administrator", "creator"]
     except Exception as e:
         logging.error(f"Error checking subscription for user {user_id}: {e}")
         return False
