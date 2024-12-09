@@ -46,13 +46,19 @@ async def send_crypto_prices():
         for crypto_name in CRYPTO_LIST:
             try:
                 cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name.upper())
-                if cmc_price:
+
+                # تبدیل مقادیر به float و بررسی صحت آن‌ها
+                try:
+                    cmc_price = float(cmc_price)
+                    percent_change_24h = float(percent_change_24h)
+
                     arrow = "🟢" if percent_change_24h > 0 else "🔴"
                     response_message += (
                         f"- {crypto_name.upper()}: ${cmc_price:.2f} {arrow} {abs(percent_change_24h):.2f}%\n"
                     )
-                else:
-                    response_message += f"- {crypto_name.upper()}: ⚠️ قیمت موجود نیست.\n"
+                except (ValueError, TypeError):
+                    response_message += f"- {crypto_name.upper()}: ⚠️ داده نامعتبر.\n"
+
             except Exception as e:
                 logging.error(f"Error fetching price for {crypto_name}: {e}")
                 response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
