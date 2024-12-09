@@ -28,7 +28,11 @@ logging.basicConfig(
 
 # تنظیمات توکن و دیتابیس
 TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
-DATABASE = 'game_bot.db'
+
+# مسیرهای پایدار برای دیتابیس و بک‌آپ
+DATABASE = os.path.join(os.path.dirname(__file__), "crypto_bot.db")
+BACKUP_DIR = os.path.join(os.path.dirname(__file__), "backups")
+
 ADMIN_CHAT_ID = 48232573
 CHANNEL_ID = "@coin_btcc"  # آیدی کانال تلگرام (باید با @ شروع شود)
 CRYPTO_LIST = ["BTC", "ETH", "TRX", "DOGS", "NOT", "X", "MAJOR", "MEMEFI", "RBTC", "GOATS"]  # لیست ارزهایی که قیمت آن‌ها ارسال می‌شود
@@ -243,9 +247,6 @@ async def inline_query(update: Update, context):
         logging.error(f"Error in inline query handler: {e}")
 
 
-# مسیرهای پایدار برای دیتابیس و بک‌آپ
-DATABASE = os.path.join(os.path.dirname(__file__), "crypto_bot.db")
-BACKUP_DIR = os.path.join(os.path.dirname(__file__), "backups")
 
 # ایجاد پوشه بک‌آپ در صورت عدم وجود
 os.makedirs(BACKUP_DIR, exist_ok=True)
