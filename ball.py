@@ -29,7 +29,7 @@ TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 DATABASE = 'game_bot.db'
 ADMIN_CHAT_ID = 48232573
 CHANNEL_ID = "@coin_btcc"  # آیدی کانال تلگرام (باید با @ شروع شود)
-CRYPTO_LIST = ["BTC", "ETH", "DOGS", "NOT", "X", "MAJOR", "MEMEFI", "RBTC", "GOATS"]  # لیست ارزهایی که قیمت آن‌ها ارسال می‌شود
+CRYPTO_LIST = ["BTC", "ETH", "TRX\n", "DOGS", "NOT", "X", "MAJOR", "MEMEFI", "RBTC", "GOATS"]  # لیست ارزهایی که قیمت آن‌ها ارسال می‌شود
 
 if not TOKEN:
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
