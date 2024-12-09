@@ -54,7 +54,7 @@ async def send_crypto_prices():
 
                     arrow = "🟢" if percent_change_24h > 0 else "🔴"
                     response_message += (
-                        f"- {crypto_name.upper()}: ${cmc_price} {arrow} {abs(percent_change_24h)}%\n"
+                        f"- {crypto_name.upper()}: ${cmc_price} {arrow} {abs(percent_change_24h):.2f}%\n"
                     )
                 except (ValueError, TypeError):
                     response_message += f"- {crypto_name.upper()}: ⚠️ داده نامعتبر.\n"
@@ -71,7 +71,7 @@ async def send_crypto_prices():
 # زمان‌بندی ارسال قیمت‌ها هر 1 دقیقه
 def schedule_price_updates():
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(send_crypto_prices, "interval", minutes=1)  # اجرای هر 1 دقیقه
+    scheduler.add_job(send_crypto_prices, "interval", minutes=2)  # اجرای هر 1 دقیقه
     scheduler.start()
     
 @flask_app.route('/')
