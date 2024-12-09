@@ -5,7 +5,7 @@ from quart import Quart, request
 from telegram.constants import ChatMemberStatus
 from telegram.ext import ContextTypes
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import Application, InlineQueryHandler, MessageHandler, filters, CommandHandler
+from telegram.ext import Application, InlineQueryHandler, MessageHandler, filters, CommandHandler, ApplicationBuilder
 import sqlite3
 import requests
 import asyncio
@@ -15,6 +15,7 @@ import datetime
 from pytz import timezone
 from hijri_converter import convert
 import shutil
+import json
 
 # تنظیم لاگ‌ها
 logging.basicConfig(
@@ -30,13 +31,9 @@ logging.basicConfig(
 TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 
 # مسیرهای پایدار برای دیتابیس و بک‌آپ
-DATABASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "crypto_bot.db"))
+DATABASE = "crypto_bot.db"
 BACKUP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "backups"))
 
-if os.access(DATABASE, os.W_OK):
-    print(f"Write access to the database path is available.")
-else:
-    print(f"Write access to the database path is not available.")
     
 ADMIN_CHAT_ID = 48232573
 CHANNEL_ID = "@coin_btcc"  # آیدی کانال تلگرام (باید با @ شروع شود)
@@ -361,57 +358,76 @@ async def show_stats(update: Update, context):
         
         
 # اضافه کردن ارز به لیست کاربر
-# تغییر توابع مدیریت add، del، و list به MessageHandler
+
+
+def get_user_file(user_id):
+    return f"user_{user_id}.json"
+
+def save_user_cryptos(user_id, cryptos):
+    file_path = get_user_file(user_id)
+    with open(file_path, "w") as f:
+        json.dump(cryptos, f)
+
+def load_user_cryptos(user_id):
+    file_path = get_user_file(user_id)
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            return json.load(f)
+    return []
+
 async def handle_message(update: Update, context):
-    
-    try:    
-            
-        
+    try:
         message = update.message.text.strip().split(maxsplit=1)
-        command = message[0].lower()  # استخراج دستور (add, del, list)
-        argument = message[1].upper() if len(message) > 1 else None  # استخراج نام ارز (در صورت وجود)
+        command = message[0].lower()
+        argument = message[1].upper() if len(message) > 1 else None
 
         user_id = update.effective_user.id
-        conn = sqlite3.connect(DATABASE)
-        c = conn.cursor()
+        user_file = get_user_file(user_id)
+        user_cryptos = load_user_cryptos(user_id)
 
         if command == "add":
             if not argument:
                 await update.message.reply_text("❗️ دستور صحیح: add <نام_ارز>")
                 return
-            c.execute("INSERT OR IGNORE INTO user_cryptos (user_id, crypto_symbol) VALUES (?, ?)", (user_id, argument))
-            conn.commit()
-            await update.message.reply_text(f"✅ ارز {argument} به لیست شما اضافه شد.")
-        
+            
+            if argument not in user_cryptos:
+                user_cryptos.append(argument)
+                save_user_cryptos(user_id, user_cryptos)
+                await update.message.reply_text(f"✅ ارز {argument} به لیست شما اضافه شد.")
+            else:
+                await update.message.reply_text(f"⚠️ ارز {argument} قبلاً در لیست شما وجود دارد.")
+
         elif command == "del":
             if not argument:
                 await update.message.reply_text("❗️ دستور صحیح: del <نام_ارز>")
                 return
-            c.execute("DELETE FROM user_cryptos WHERE user_id = ? AND crypto_symbol = ?", (user_id, argument))
-            conn.commit()
-            await update.message.reply_text(f"✅ ارز {argument} از لیست شما حذف شد.")
+            
+            if argument in user_cryptos:
+                user_cryptos.remove(argument)
+                save_user_cryptos(user_id, user_cryptos)
+                await update.message.reply_text(f"✅ ارز {argument} از لیست شما حذف شد.")
+            else:
+                await update.message.reply_text(f"⚠️ ارز {argument} در لیست شما یافت نشد.")
         
         elif command == "list":
-            c.execute("SELECT crypto_symbol FROM user_cryptos WHERE user_id = ?", (user_id,))
-            cryptos = [row[0] for row in c.fetchall()]
-            if not cryptos:
+            if not user_cryptos:
                 await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
             else:
                 response = "💰 لیست ارزهای شما:\n"
-                for crypto in cryptos:
+                for crypto in user_cryptos:
                     price = get_crypto_price_from_coinmarketcap(crypto)
                     response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
                 await update.message.reply_text(response)
         
         else:
-            # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
-            await get_crypto_price_direct(update, context)
-
-        conn.close()
-
+                        
+                        # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
+          await get_crypto_price_direct(update, context)
+    
     except Exception as e:
         logging.error(f"Error in handle_message: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+#_________---++--++++--________
 
 
 # تابع برای تنظیم Webhook
