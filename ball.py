@@ -1,6 +1,8 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import os
 from quart import Quart, request
+from telegram.constants import ChatMemberStatus
+from telegram.ext import ContextTypes
 from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Application, InlineQueryHandler, MessageHandler, filters, CommandHandler
 import sqlite3
@@ -36,7 +38,31 @@ bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
+async def is_user_subscribed(user_id: int) -> bool:
+    """بررسی عضویت کاربر در کانال"""
+    try:
+        chat_member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+        return chat_member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]
+    except Exception as e:
+        logging.error(f"Error checking subscription for user {user_id}: {e}")
+        return False
 
+
+# تابع مدیریت پیام‌ها با بررسی عضویت
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    if await is_user_subscribed(user_id):
+        # اگر عضو کانال بود، ادامه بده
+        await update.message.reply_text("✅ شما در کانال عضو هستید، می‌توانید از ربات استفاده کنید.")
+        await get_crypto_price_direct(update, context)
+    else:
+        # اگر عضو نبود، پیام اخطار ارسال کن
+        await update.message.reply_text(
+            f"❌ شما در کانال عضو نیستید.\n"
+            f"لطفاً ابتدا در کانال عضو شوید:\n{CHANNEL_ID}"
+        )
+        
 # تابع ارسال قیمت ارزها به کانال تلگرام
 
 # --- تابع ارسال قیمت‌ها به کانال ---
@@ -49,23 +75,29 @@ async def send_crypto_prices():
 
                 # تبدیل مقادیر به float و بررسی صحت آن‌ها
                 try:
-                    cmc_price = float(cmc_price)
-                    percent_change_24h = float(percent_change_24h)
+                    cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name)
+                    nobitex_price = get_usdt_to_irr_price(crypto_name.lower())
 
-                    arrow = "🟢" if percent_change_24h > 0 else "🔴"
-                    response_message += (
-                        f"- {crypto_name.upper()}: ${cmc_price:.2f} {arrow} {abs(percent_change_24h):.2f}%\n"
-                    )
+                    if cmc_price or nobitex_price:
+                     response_message = f"💰 قیمت {crypto_name}:\n"
+                    if cmc_price is not None:
+                # اضافه کردن فلش سبز یا قرمز
+                     arrow = "🟢" if percent_change_24h > 0 else "🔴"
+                     response_message += (
+                    f"- کوین مارکت کپ: ${cmc_price} {arrow} {abs(percent_change_24h):.2f}%\n"
+                )
+                    if nobitex_price:
+                     response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
                 except (ValueError, TypeError):
                     response_message += f"- {crypto_name.upper()}: ⚠️ داده نامعتبر.\n"
-
+                    
             except Exception as e:
-                logging.error(f"Error fetching price for {crypto_name}: {e}")
-                response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
+                 logging.error(f"Error fetching price for {crypto_name}: {e}")
+                 response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
 
-        await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
-    except Exception as e:
-        logging.error(f"Error in send_crypto_prices: {e}")
+                 await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
+    except Exception as e:         
+             logging.error(f"Error in send_crypto_prices: {e}")
 
 
 # زمان‌بندی ارسال قیمت‌ها هر 1 دقیقه
