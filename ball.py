@@ -1,4 +1,5 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 import os
 from quart import Quart, request
 from telegram.constants import ChatMemberStatus
@@ -13,6 +14,7 @@ import jdatetime
 import datetime
 from pytz import timezone
 from hijri_converter import convert
+import shutil
 
 # تنظیم لاگ‌ها
 logging.basicConfig(
@@ -241,6 +243,38 @@ async def inline_query(update: Update, context):
         logging.error(f"Error in inline query handler: {e}")
 
 
+# مسیرهای پایدار برای دیتابیس و بک‌آپ
+DATABASE = os.path.join(os.path.dirname(__file__), "crypto_bot.db")
+BACKUP_DIR = os.path.join(os.path.dirname(__file__), "backups")
+
+# ایجاد پوشه بک‌آپ در صورت عدم وجود
+os.makedirs(BACKUP_DIR, exist_ok=True)
+
+
+def backup_database():
+    """ایجاد یک نسخه پشتیبان از فایل دیتابیس SQLite"""
+    try:
+        # نام فایل بک‌آپ با تاریخ و زمان
+        backup_file = os.path.join(
+            BACKUP_DIR, f"crypto_bot_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+        )
+
+        # ایجاد نسخه پشتیبان
+        shutil.copyfile(DATABASE, backup_file)
+        print(f"✅ بک‌آپ دیتابیس با موفقیت ایجاد شد: {backup_file}")
+    except Exception as e:
+        print(f"⚠️ خطا در ایجاد بک‌آپ: {e}")
+
+
+# نمونه استفاده: اجرای بک‌آپ هر ۳۰ دقیقه
+
+def start_backup_scheduler():
+    """زمان‌بندی بک‌آپ خودکار"""
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(backup_database, "interval", minutes=2)  # هر ۳۰ دقیقه
+    scheduler.start()
+    
+    
 # مدیریت لیست ارزها برای کاربران
 def setup_database():
     conn = sqlite3.connect(DATABASE)
@@ -404,6 +438,8 @@ async def webhook_update():
 async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
   
+    start_backup_scheduler()  # شروع زمان‌بندی بک‌آپ
+    
 # مدیریت پیام‌های خاص "user"
     application.add_handler(MessageHandler(filters.Regex(r'^user$'), handle_user))
 
@@ -414,6 +450,7 @@ async def main():
     application.add_handler(CommandHandler("stats", show_stats))
     
     application.add_handler(InlineQueryHandler(inline_query))
+
 
     
     await set_webhook()

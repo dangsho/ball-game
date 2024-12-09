@@ -10,3 +10,4 @@ asyncpg
 pytz
 hijri-converter
 pyppeteer
+shutil
