@@ -434,25 +434,16 @@ async def handle_message(update: Update, context):
 
 # تابع قیمت ارز
 async def fetch_and_send_crypto_price(update, context, crypto_name):
- class MockUpdate:
-    def __init__(self, user_id, username, text):
-        self.message = MockMessage(user_id, username, text)
-
-class MockMessage:
-    def __init__(self, user_id, username, text):
-        self.text = text
-        self.from_user = MockUser(user_id, username)
-
-    async def reply_text(self, text):
-        print(f"Mock Reply Text: {text}")
-
-    async def reply_document(self, document):
-        print(f"Mock Reply Document Sent: {document}")
-
-class MockUser:
-    def __init__(self, user_id, username):
-        self.id = user_id
-        self.username = username
+    """
+    استفاده از تابع get_crypto_price_direct برای دریافت و ارسال قیمت ارز
+    """
+    try:
+        # بازنویسی نام ارز در پیام برای استفاده از تابع مستقیم
+        update.message.text = crypto_name.upper()  # بازنویسی متن پیام
+        await get_crypto_price_direct(update, context)  # فراخوانی تابع اصلی
+    except Exception as e:
+        logging.error(f"Error in fetch_and_send_crypto_price: {e}")
+        await update.message.reply_text("⚠️ خطایی در دریافت قیمت ارز رخ داد.")
 
 #_________---++--++++--________
 
@@ -479,7 +470,7 @@ async def webhook_update():
     if request.method == "POST":
         try:
             data = await request.get_json()
-            update = Update.de_json(data, bot)
+            update = Update.de_j(son(data, bot)
             await application.update_queue.put(update)
             return 'ok', 200
         except Exception as e:
