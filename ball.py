@@ -449,19 +449,21 @@ async def fetch_and_send_crypto_price(update, context, crypto_name):
             def __init__(self, original_message, new_text):
                 self.text = new_text
                 self.from_user = original_message.from_user
+                self.original_message = original_message  # ذخیره پیام اصلی برای استفاده در متدهای بعدی
 
             async def reply_text(self, text):
-                await original_message.reply_text(text)
+                await self.original_message.reply_text(text)
 
             async def reply_document(self, document):
-                await original_message.reply_document(document)
+                await self.original_message.reply_document(document)
 
+        # ایجاد شیء موقت با متن جدید
         temp_update = TemporaryUpdate(update, crypto_name.upper())
         await get_crypto_price_direct(temp_update, context)
     except Exception as e:
         logging.error(f"Error in fetch_and_send_crypto_price: {e}")
         await update.message.reply_text("⚠️ خطایی در دریافت قیمت ارز رخ داد.")
-
+        
 #_________---++--++++--________
 
 
