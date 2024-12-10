@@ -486,10 +486,6 @@ async def webhook_update():
             logging.error(f"Error processing webhook: {e}")
             return 'Bad Request', 400
 
-# ساخت و پیکربندی ربات
-
-session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60))
-app = ApplicationBuilder().token("TOKEN").http_session(session).build()
 
 # تابع اصلی برای راه‌اندازی برنامه
 async def main():
@@ -498,7 +494,10 @@ async def main():
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
   
     start_backup_scheduler()  # شروع زمان‌بندی بک‌آپ
-    
+    session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60))
+    print("Session created successfully!")
+    await session.close()
+
 # مدیریت پیام‌های خاص "user"
     application.add_handler(MessageHandler(filters.Regex(r'^user$'), handle_user))
 
