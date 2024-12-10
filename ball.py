@@ -416,17 +416,23 @@ async def handle_message(update: Update, context):
                 await update.message.reply_text(f"⚠️ ارز {argument} در لیست شما یافت نشد.")
 
         elif command == "list":
-            if not user_cryptos:
-                await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
+            file_path = get_user_file(user_id)
+            if os.path.exists(file_path):
+                # اگر فایل موجود است، آن را ارسال کن
+                await update.message.reply_document(InputFile(file_path))
+                await update.message.reply_text("ℹ️ آخرین لیست ذخیره‌شده ارسال شد.")
             else:
-                response = "💰 لیست ارزهای شما:\n"
-                for crypto in user_cryptos:
-                    await fetch_and_send_crypto_price(update, context, crypto)
+                # اگر فایل موجود نیست، قیمت ارزها ارسال شود
+                if not user_cryptos:
+                    await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
+                else:
+                    response = "💰 لیست قیمت ارزهای شما:\n"
+                    for crypto in user_cryptos:
+                        await fetch_and_send_crypto_price(update, context, crypto)
 
         else:
-  
-                        # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
-          await get_crypto_price_direct(update, context)
+            # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
+            await get_crypto_price_direct(update, context)
 
     except Exception as e:
         logging.error(f"Error in handle_message: {e}")
@@ -541,6 +547,5 @@ if __name__ == "__main__":
     # اجرای عملیات اصلی
     asyncio.run(main())
 
-    # اجرای ربات تلگرام
-    app.run_polling()
+
     
