@@ -2,6 +2,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
 import os
 from quart import Quart, request
+from telegram.error import TimedOut
 from telegram.constants import ChatMemberStatus
 from telegram.ext import ContextTypes
 from telegram import Update, Bot, InlineQueryResultArticle, InputFile, InputTextMessageContent
@@ -39,6 +40,12 @@ ADMIN_CHAT_ID = 48232573
 CHANNEL_ID = "@coin_btcc"  # آیدی کانال تلگرام (باید با @ شروع شود)
 CRYPTO_LIST = ["BTC", "ETH", "TRX", "DOGS", "NOT", "X", "MAJOR", "MEMEFI", "RBTC", "GOATS"]  # لیست ارزهایی که قیمت آن‌ها ارسال می‌شود
 
+
+try:
+    # Your Telegram bot logic
+except TimedOut:
+    print("Request timed out. Retrying...")
+    
 if not TOKEN:
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
 
@@ -511,9 +518,11 @@ async def main():
     port = int(os.getenv('PORT', 5000))
     await flask_app.run_task(host="0.0.0.0", port=port)
 
+app = ApplicationBuilder().token("YOUR_BOT_TOKEN").request_timeout(60).build()
+
 if __name__ == '__main__':
     asyncio.run(main())
-    
+    app.run_polling()
     logging.basicConfig(level=logging.INFO)
  
 
