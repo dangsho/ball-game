@@ -437,18 +437,32 @@ from copy import deepcopy
 
 async def fetch_and_send_crypto_price(update, context, crypto_name):
     """
-    استفاده از get_crypto_price_direct برای دریافت و ارسال قیمت ارز
+    ارسال نام ارز مستقیماً به get_crypto_price_direct
     """
     try:
-        # ایجاد یک کپی از شیء Update
-        new_update = deepcopy(update)
-        new_update.message.text = crypto_name.upper()  # تغییر متن پیام در نسخه کپی
-        
-        await get_crypto_price_direct(new_update, context)  # ارسال به تابع
+        # ایجاد یک شیء موقت Update با تغییرات لازم
+        class TemporaryUpdate:
+            def __init__(self, original_update, new_text):
+                self.message = TemporaryMessage(original_update.message, new_text)
+
+        class TemporaryMessage:
+            def __init__(self, original_message, new_text):
+                self.text = new_text
+                self.from_user = original_message.from_user
+                self.original_message = original_message  # ذخیره پیام اصلی برای استفاده در متدهای بعدی
+
+            async def reply_text(self, text):
+                await self.original_message.reply_text(text)
+
+            async def reply_document(self, document):
+                await self.original_message.reply_document(document)
+
+        # ایجاد شیء موقت با متن جدید
+        temp_update = TemporaryUpdate(update, crypto_name.upper())
+        await get_crypto_price_direct(temp_update, context)
     except Exception as e:
         logging.error(f"Error in fetch_and_send_crypto_price: {e}")
         await update.message.reply_text("⚠️ خطایی در دریافت قیمت ارز رخ داد.")
-
 #_________---++--++++--________
 
 
