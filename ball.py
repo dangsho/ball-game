@@ -433,14 +433,18 @@ async def handle_message(update: Update, context):
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
 
 # تابع قیمت ارز
+from copy import deepcopy
+
 async def fetch_and_send_crypto_price(update, context, crypto_name):
     """
-    استفاده از تابع get_crypto_price_direct برای دریافت و ارسال قیمت ارز
+    استفاده از get_crypto_price_direct برای دریافت و ارسال قیمت ارز
     """
     try:
-        # بازنویسی نام ارز در پیام برای استفاده از تابع مستقیم
-        update.message.text = crypto_name.upper()  # بازنویسی متن پیام
-        await get_crypto_price_direct(update, context)  # فراخوانی تابع اصلی
+        # ایجاد یک کپی از شیء Update
+        new_update = deepcopy(update)
+        new_update.message.text = crypto_name.upper()  # تغییر متن پیام در نسخه کپی
+        
+        await get_crypto_price_direct(new_update, context)  # ارسال به تابع
     except Exception as e:
         logging.error(f"Error in fetch_and_send_crypto_price: {e}")
         await update.message.reply_text("⚠️ خطایی در دریافت قیمت ارز رخ داد.")
