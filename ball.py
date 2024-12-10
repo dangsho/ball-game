@@ -4,7 +4,7 @@ import os
 from quart import Quart, request
 from telegram.constants import ChatMemberStatus
 from telegram.ext import ContextTypes
-from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
+from telegram import Update, Bot, InlineQueryResultArticle, InputFile, InputTextMessageContent
 from telegram.ext import Application, InlineQueryHandler, MessageHandler, filters, CommandHandler, ApplicationBuilder
 import sqlite3
 import requests
