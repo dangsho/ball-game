@@ -416,23 +416,17 @@ async def handle_message(update: Update, context):
                 await update.message.reply_text(f"⚠️ ارز {argument} در لیست شما یافت نشد.")
 
         elif command == "list":
-            file_path = get_user_file(user_id)
-            if os.path.exists(file_path):
-                # اگر فایل موجود است، آن را ارسال کن
-                await update.message.reply_document(InputFile(file_path))
-                await update.message.reply_text("ℹ️ آخرین لیست ذخیره‌شده ارسال شد.")
+            if not user_cryptos:
+                await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
             else:
-                # اگر فایل موجود نیست، قیمت ارزها ارسال شود
-                if not user_cryptos:
-                    await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
-                else:
-                    response = "💰 لیست قیمت ارزهای شما:\n"
-                    for crypto in user_cryptos:
-                        await fetch_and_send_crypto_price(update, context, crypto)
+                response = "💰 لیست ارزهای شما:\n"
+                for crypto in user_cryptos:
+                    await fetch_and_send_crypto_price(update, context, crypto)
 
         else:
-            # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
-            await get_crypto_price_direct(update, context)
+  
+                        # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
+          await get_crypto_price_direct(update, context)
 
     except Exception as e:
         logging.error(f"Error in handle_message: {e}")
@@ -455,20 +449,19 @@ async def fetch_and_send_crypto_price(update, context, crypto_name):
             def __init__(self, original_message, new_text):
                 self.text = new_text
                 self.from_user = original_message.from_user
-                self.original_message = original_message  # ذخیره پیام اصلی برای استفاده در متدهای بعدی
 
             async def reply_text(self, text):
-                await self.original_message.reply_text(text)
+                await original_message.reply_text(text)
 
             async def reply_document(self, document):
-                await self.original_message.reply_document(document)
+                await original_message.reply_document(document)
 
-        # ایجاد شیء موقت با متن جدید
         temp_update = TemporaryUpdate(update, crypto_name.upper())
         await get_crypto_price_direct(temp_update, context)
     except Exception as e:
         logging.error(f"Error in fetch_and_send_crypto_price: {e}")
         await update.message.reply_text("⚠️ خطایی در دریافت قیمت ارز رخ داد.")
+
 #_________---++--++++--________
 
 
@@ -547,5 +540,6 @@ if __name__ == "__main__":
     # اجرای عملیات اصلی
     asyncio.run(main())
 
-
+    # اجرای ربات تلگرام
+    app.run_polling()
     
