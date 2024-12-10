@@ -431,22 +431,25 @@ async def handle_message(update: Update, context):
 
 # تابع قیمت ارز
 async def fetch_and_send_crypto_price(update, context, crypto_name):
-    class MockUpdate:
-        def __init__(self, user_id, username, text):
-            self.message = MockMessage(user_id, username, text)
+ class MockUpdate:
+    def __init__(self, user_id, username, text):
+        self.message = MockMessage(user_id, username, text)
 
-    class MockMessage:
-        def __init__(self, user_id, username, text):
-            self.text = text
-            self.from_user = MockUser(user_id, username)
+class MockMessage:
+    def __init__(self, user_id, username, text):
+        self.text = text
+        self.from_user = MockUser(user_id, username)
 
-    class MockUser:
-        def __init__(self, user_id, username):
-            self.id = user_id
-            self.username = username
+    async def reply_text(self, text):
+        print(f"Mock Reply Text: {text}")
 
-    mock_update = MockUpdate(update.effective_user.id, update.effective_user.username, crypto_name)
-    await get_crypto_price_direct(mock_update, context)
+    async def reply_document(self, document):
+        print(f"Mock Reply Document Sent: {document}")
+
+class MockUser:
+    def __init__(self, user_id, username):
+        self.id = user_id
+        self.username = username
 
 #_________---++--++++--________
 
