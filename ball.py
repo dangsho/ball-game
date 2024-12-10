@@ -2,11 +2,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
 import os
 from quart import Quart, request
-from telegram.error import TimedOut
 from telegram.constants import ChatMemberStatus
 from telegram.ext import ContextTypes
-from telegram import Update, Bot, InlineQueryResultArticle, InputFile, InputTextMessageContent
-from telegram.ext import Application, InlineQueryHandler, MessageHandler, filters, CommandHandler, ApplicationBuilder
+from telegram import Update, Bot, InlineQueryResultArticle, InputTextMessageContent
+from telegram.ext import Application, InlineQueryHandler, MessageHandler, filters, CommandHandler
 import sqlite3
 import requests
 import asyncio
@@ -16,8 +15,6 @@ import datetime
 from pytz import timezone
 from hijri_converter import convert
 import shutil
-import json
-import aiohttp
 
 # تنظیم لاگ‌ها
 logging.basicConfig(
@@ -33,15 +30,18 @@ logging.basicConfig(
 TOKEN = "8149339547:AAEK7Dkz0VgIWCIT8qJqDvQ88eUuKK5N1x8"
 
 # مسیرهای پایدار برای دیتابیس و بک‌آپ
-DATABASE = "crypto_bot.db"
+DATABASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "crypto_bot.db"))
 BACKUP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "backups"))
 
+if os.access(DATABASE, os.W_OK):
+    print(f"Write access to the database path is available.")
+else:
+    print(f"Write access to the database path is not available.")
     
 ADMIN_CHAT_ID = 48232573
 CHANNEL_ID = "@coin_btcc"  # آیدی کانال تلگرام (باید با @ شروع شود)
 CRYPTO_LIST = ["BTC", "ETH", "TRX", "DOGS", "NOT", "X", "MAJOR", "MEMEFI", "RBTC", "GOATS"]  # لیست ارزهایی که قیمت آن‌ها ارسال می‌شود
 
-    
 if not TOKEN:
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
 
@@ -255,7 +255,9 @@ async def inline_query(update: Update, context):
 
 # ایجاد پوشه بک‌آپ در صورت عدم وجود
 os.makedirs(BACKUP_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
 
+print(f"Database path: {DATABASE}")
 print(f"Backup directory path: {BACKUP_DIR}")
 
 def backup_database():
@@ -357,114 +359,81 @@ async def show_stats(update: Update, context):
     else:
         await update.message.reply_text("⛔ شما مجاز به استفاده از این دستور نیستید.")
         
-        
-# اضافه کردن ارز به لیست کاربر
+async def forward_message_to_admin(update: Update, context):
+    """
+    ارسال پیام کاربر به مدیر
+    """
+    try:
+        # اطلاعات پیام کاربر
+        user_id = update.effective_user.id
+        username = update.effective_user.username
+        message_text = update.message.text
 
+        # ساخت پیام برای ارسال به مدیر
+        message_to_admin = f"🔔 پیام جدید از کاربر:\n\n👤 آیدی: {user_id}\n"
+        if username:
+            message_to_admin += f"📛 نام کاربری: @{username}\n"
+        message_to_admin += f"💬 پیام:\n{message_text}"
 
+        # ارسال پیام به مدیر
+        await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message_to_admin)
 
-# نام فایل ذخیره‌سازی
-def get_user_file(user_id):
-    return f"user_{user_id}.json"
+    except Exception as e:
+        logging.error(f"Error forwarding message to admin: {e}")
 
-# ذخیره لیست و ارسال آن به چت
-async def save_and_send_user_cryptos(user_id, cryptos, update):
-    file_path = get_user_file(user_id)
-    with open(file_path, "w") as f:
-        json.dump(cryptos, f, ensure_ascii=False, indent=4)
-
-    await update.message.reply_text("✅ لیست ارزهای شما به‌روزرسانی شد.")
-    await update.message.reply_document(InputFile(file_path))
-
-# بارگذاری لیست از فایل
-def load_user_cryptos(user_id):
-    file_path = get_user_file(user_id)
-    if os.path.exists(file_path):
-        with open(file_path, "r") as f:
-            return json.load(f)
-    return []
-
-# مدیریت پیام‌ها
+# به‌روزرسانی handler پیام‌ها
 async def handle_message(update: Update, context):
     try:
+        # فوروارد کردن پیام به مدیر
+        await forward_message_to_admin(update, context)
+
+        # مدیریت سایر دستورها و درخواست‌ها   
+        
         message = update.message.text.strip().split(maxsplit=1)
-        command = message[0].lower()
-        argument = message[1].upper() if len(message) > 1 else None
+        command = message[0].lower()  # استخراج دستور (add, del, list)
+        argument = message[1].upper() if len(message) > 1 else None  # استخراج نام ارز (در صورت وجود)
 
         user_id = update.effective_user.id
-        user_cryptos = load_user_cryptos(user_id)
+        conn = sqlite3.connect(DATABASE)
+        c = conn.cursor()
 
         if command == "add":
             if not argument:
                 await update.message.reply_text("❗️ دستور صحیح: add <نام_ارز>")
                 return
-
-            if argument not in user_cryptos:
-                user_cryptos.append(argument)
-                await save_and_send_user_cryptos(user_id, user_cryptos, update)
-            else:
-                await update.message.reply_text(f"⚠️ ارز {argument} قبلاً در لیست شما وجود دارد.")
-
+            c.execute("INSERT OR IGNORE INTO user_cryptos (user_id, crypto_symbol) VALUES (?, ?)", (user_id, argument))
+            conn.commit()
+            await update.message.reply_text(f"✅ ارز {argument} به لیست شما اضافه شد.")
+        
         elif command == "del":
             if not argument:
                 await update.message.reply_text("❗️ دستور صحیح: del <نام_ارز>")
                 return
-
-            if argument in user_cryptos:
-                user_cryptos.remove(argument)
-                await save_and_send_user_cryptos(user_id, user_cryptos, update)
-            else:
-                await update.message.reply_text(f"⚠️ ارز {argument} در لیست شما یافت نشد.")
-
+            c.execute("DELETE FROM user_cryptos WHERE user_id = ? AND crypto_symbol = ?", (user_id, argument))
+            conn.commit()
+            await update.message.reply_text(f"✅ ارز {argument} از لیست شما حذف شد.")
+        
         elif command == "list":
-            if not user_cryptos:
+            c.execute("SELECT crypto_symbol FROM user_cryptos WHERE user_id = ?", (user_id,))
+            cryptos = [row[0] for row in c.fetchall()]
+            if not cryptos:
                 await update.message.reply_text("ℹ️ لیست شما خالی است. از دستور add برای اضافه کردن ارز استفاده کنید.")
             else:
                 response = "💰 لیست ارزهای شما:\n"
-                for crypto in user_cryptos:
-                    await fetch_and_send_crypto_price(update, context, crypto)
-
+                for crypto in cryptos:
+                    price = get_crypto_price_from_coinmarketcap(crypto)
+                    response += f"- {crypto}: ${price if price else 'نامشخص'}\n"
+                await update.message.reply_text(response)
+        
         else:
-  
-                        # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
-          await get_crypto_price_direct(update, context)
+            # اگر دستور ناهماهنگ باشد، به‌صورت پیش‌فرض قیمت را جستجو کن
+            await get_crypto_price_direct(update, context)
+
+        conn.close()
 
     except Exception as e:
         logging.error(f"Error in handle_message: {e}")
         await update.message.reply_text("⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
-
-# تابع قیمت ارز
-from copy import deepcopy
-
-async def fetch_and_send_crypto_price(update, context, crypto_name):
-    """
-    ارسال نام ارز مستقیماً به get_crypto_price_direct
-    """
-    try:
-        # ایجاد یک شیء موقت Update با تغییرات لازم
-        class TemporaryUpdate:
-            def __init__(self, original_update, new_text):
-                self.message = TemporaryMessage(original_update.message, new_text)
-
-        class TemporaryMessage:
-            def __init__(self, original_message, new_text):
-                self.text = new_text
-                self.from_user = original_message.from_user
-                self.original_message = original_message  # ذخیره پیام اصلی برای استفاده در متدهای بعدی
-
-            async def reply_text(self, text):
-                await self.original_message.reply_text(text)
-
-            async def reply_document(self, document):
-                await self.original_message.reply_document(document)
-
-        # ایجاد شیء موقت با متن جدید
-        temp_update = TemporaryUpdate(update, crypto_name.upper())
-        await get_crypto_price_direct(temp_update, context)
-    except Exception as e:
-        logging.error(f"Error in fetch_and_send_crypto_price: {e}")
-        await update.message.reply_text("⚠️ خطایی در دریافت قیمت ارز رخ داد.")
-        
-#_________---++--++++--________
 
 
 # تابع برای تنظیم Webhook
@@ -496,18 +465,12 @@ async def webhook_update():
             logging.error(f"Error processing webhook: {e}")
             return 'Bad Request', 400
 
-
 # تابع اصلی برای راه‌اندازی برنامه
 async def main():
-    print("🚀 ربات آماده اجرا است...")
-    logging.info("ربات در حال اجرا است...")
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
   
     start_backup_scheduler()  # شروع زمان‌بندی بک‌آپ
-    session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60))
-    print("Session created successfully!")
-    await session.close()
-
+    
 # مدیریت پیام‌های خاص "user"
     application.add_handler(MessageHandler(filters.Regex(r'^user$'), handle_user))
 
@@ -530,18 +493,10 @@ async def main():
     port = int(os.getenv('PORT', 5000))
     await flask_app.run_task(host="0.0.0.0", port=port)
 
-import logging
-from telegram.ext import ApplicationBuilder
-
-
-
-if __name__ == "__main__":
-    # تنظیمات لاگ
-    logging.basicConfig(level=logging.INFO)
-
-    # اجرای عملیات اصلی
+if __name__ == '__main__':
     asyncio.run(main())
+    
+    logging.basicConfig(level=logging.INFO)
+ 
 
-    # اجرای ربات تلگرام
-    app.run_polling()
     
