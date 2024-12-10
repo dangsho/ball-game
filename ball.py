@@ -17,6 +17,7 @@ from pytz import timezone
 from hijri_converter import convert
 import shutil
 import json
+import aiohttp
 
 # تنظیم لاگ‌ها
 logging.basicConfig(
@@ -40,11 +41,6 @@ ADMIN_CHAT_ID = 48232573
 CHANNEL_ID = "@coin_btcc"  # آیدی کانال تلگرام (باید با @ شروع شود)
 CRYPTO_LIST = ["BTC", "ETH", "TRX", "DOGS", "NOT", "X", "MAJOR", "MEMEFI", "RBTC", "GOATS"]  # لیست ارزهایی که قیمت آن‌ها ارسال می‌شود
 
-
-try:
-    # Your Telegram bot logic
-except TimedOut:
-    print("Request timed out. Retrying...")
     
 if not TOKEN:
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
@@ -490,8 +486,15 @@ async def webhook_update():
             logging.error(f"Error processing webhook: {e}")
             return 'Bad Request', 400
 
+# ساخت و پیکربندی ربات
+
+session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60))
+app = ApplicationBuilder().token("TOKEN").http_session(session).build()
+
 # تابع اصلی برای راه‌اندازی برنامه
 async def main():
+    print("🚀 ربات آماده اجرا است...")
+    logging.info("ربات در حال اجرا است...")
     setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
   
     start_backup_scheduler()  # شروع زمان‌بندی بک‌آپ
@@ -518,12 +521,18 @@ async def main():
     port = int(os.getenv('PORT', 5000))
     await flask_app.run_task(host="0.0.0.0", port=port)
 
-app = ApplicationBuilder().token("YOUR_BOT_TOKEN").request_timeout(60).build()
+import logging
+from telegram.ext import ApplicationBuilder
 
-if __name__ == '__main__':
-    asyncio.run(main())
-    app.run_polling()
+
+
+if __name__ == "__main__":
+    # تنظیمات لاگ
     logging.basicConfig(level=logging.INFO)
- 
 
+    # اجرای عملیات اصلی
+    asyncio.run(main())
+
+    # اجرای ربات تلگرام
+    app.run_polling()
     
