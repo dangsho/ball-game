@@ -470,7 +470,7 @@ async def webhook_update():
     if request.method == "POST":
         try:
             data = await request.get_json()
-            update = Update.de_j(son(data, bot)
+            update = Update.de_json(data, bot)
             await application.update_queue.put(update)
             return 'ok', 200
         except Exception as e:
