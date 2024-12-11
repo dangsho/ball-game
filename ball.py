@@ -134,31 +134,41 @@ def get_usdt_to_irr_price(prls):
 def get_crypto_price_from_coinmarketcap(crypto_symbol):
     
     """دریافت قیمت ارز دیجیتال از نوبیتکس"""
-    symbol = str(crypto_symbol).upper()  # تبدیل نماد ارز به حروف بزرگ
+    symbol = str(crypto_symbol).lower()  # تبدیل نماد ارز به حروف کوچک برای سازگاری با نوبیتکس
     try:
         # URL برای دریافت قیمت از API نوبیتکس
-        url = f"https://api.nobitex.ir/market/stats"
+        url = "https://api.nobitex.ir/market/stats"
 
+        # پارامترهای درخواست به API
         params = {
             "srcCurrency": symbol,
             "dstCurrency": "usdt"  # دلار تتر
         }
 
         response = requests.get(url, params=params)
-        response.raise_for_status()
+        response.raise_for_status()  # بررسی هرگونه خطای HTTP
         data = response.json()
+
+        # بررسی وجود نماد مورد نظر در پاسخ API
+        if f"{symbol}-usdt" not in data["stats"]:
+            logging.error(f"Symbol {symbol} not found in Nobitex response.")
+            return None, None
 
         # دریافت قیمت و درصد تغییرات 24 ساعته
         price = data["stats"][f"{symbol}-usdt"]["latest"]
         percent_change_24h = data["stats"][f"{symbol}-usdt"]["dayChange"]
 
+        # تبدیل قیمت به float برای مقایسه
+        price = float(price)
+
         # محدود کردن اعشار بر اساس شرط
         if price > 1:
-            price = f"{float(price):.2f}"  # 2 رقم اعشار برای قیمت بالای 1 دلار
+            price = f"{price:.2f}"  # 2 رقم اعشار برای قیمت بالای 1 دلار
         else:
-            price = f"{float(price):.8f}"  # 8 رقم اعشار برای قیمت‌های کوچک‌تر
+            price = f"{price:.8f}"  # 8 رقم اعشار برای قیمت‌های کوچک‌تر
 
         return price, percent_change_24h
+
     except requests.RequestException as e:
         logging.error(f"Error fetching data from Nobitex: {e}")
         return None, None
