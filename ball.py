@@ -62,6 +62,7 @@ async def send_crypto_prices():
         for crypto_name in CRYPTO_LIST:
             try:
                 cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name.upper())
+              
 
                 # بررسی داده‌های بازگشتی
                 if cmc_price is None or percent_change_24h is None:
@@ -83,6 +84,7 @@ async def send_crypto_prices():
             except Exception as e:
                 logging.error(f"Error fetching price for {crypto_name}: {e}")
                 response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
+                response_message = "💰 قیمت لحظه‌ای ارزهای دیجیتال:\n"
 
         await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
     except Exception as e:
