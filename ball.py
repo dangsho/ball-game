@@ -441,22 +441,14 @@ async def webhook_update():
             logging.error(f"Error processing webhook: {e}")
             return 'Bad Request', 400
 
-# تابع اصلی برای راه‌اندازی برنامه
-import asyncio
-import os
-import logging
-from flask import Flask
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-# فرض بر این است که توابع شما به درستی تعریف شده‌اند
-# از جمله setup_database, start_backup_scheduler, set_webhook و غیره.
+# تابع اصلی برای راه‌اندازی برنامه___________
 
 async def main():
     # پیکربندی لاگینگ
     logging.basicConfig(level=logging.INFO)
 
     # راه‌اندازی دیتابیس
-    await setup_database()  # اگر async نیست، بدون await فراخوانی کنید
+    setup_database()  # اگر async نیست، بدون await فراخوانی کنید
    
 
     # افزودن هندلرها به application
@@ -479,5 +471,12 @@ async def main():
     port = int(os.getenv('PORT', 5000))
     await flask_app.run_task(host="0.0.0.0", port=port)
 
+async def shutdown():
+    await application.stop()
+    logging.info("Application stopped.")
+
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        asyncio.run(shutdown())
