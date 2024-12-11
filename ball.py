@@ -80,7 +80,7 @@ async def send_crypto_prices():
 
                     arrow = "🟢" if percent_change_24h > 0 else "🔴"
                     response_message += (
-                    f"- {crypto_name.upper()}: ${cmc_price:.8f} | {arrow} {abs(percent_change_24h):.2f}%\n \n{usdt_to_irr:,.0f} ریال "
+                    f"- {crypto_name.upper()}: ${cmc_price} | {arrow} {abs(percent_change_24h):.2f}%\n \n{usdt_to_irr:,.0f} ریال \n\n"
                 )
                 except (ValueError, TypeError):
                     response_message += f"- {crypto_name.upper()}: ⚠️ داده نامعتبر.\n"
