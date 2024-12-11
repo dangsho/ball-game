@@ -64,7 +64,7 @@ async def send_crypto_prices():
         for crypto_name in CRYPTO_LIST:
             try:
                 cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name.upper())
-                usdt_to_irr = get_usdt_to_irr_price(crypto_name.upper())
+                usdt_to_irr = get_usdt_to_irr_price(crypto_name.lower())
               
 
                 # بررسی داده‌های بازگشتی
@@ -80,7 +80,7 @@ async def send_crypto_prices():
 
                     arrow = "🟢" if percent_change_24h > 0 else "🔴"
                     response_message += (
-                    f"- {crypto_name.upper()}: ${cmc_price:.2f} | {usdt_to_irr:,.0f} ریال {arrow} {abs(percent_change_24h):.2f}%\n"
+                    f"- {crypto_name.upper()}: ${cmc_price:.8f} | {usdt_to_irr:,.0f} ریال {arrow} {abs(percent_change_24h):.2f}%\n"
                 )
                 except (ValueError, TypeError):
                     response_message += f"- {crypto_name.upper()}: ⚠️ داده نامعتبر.\n"
