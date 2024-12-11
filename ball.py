@@ -132,34 +132,37 @@ def get_usdt_to_irr_price(prls):
 
 
 def get_crypto_price_from_coinmarketcap(crypto_symbol):
-    symbol = str(crypto_symbol).upper()
-    """دریافت قیمت ارز دیجیتال از CoinMarketCap"""
+    
+    """دریافت قیمت ارز دیجیتال از نوبیتکس"""
+    symbol = str(crypto_symbol).upper()  # تبدیل نماد ارز به حروف بزرگ
     try:
-        url = f"https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
-        headers = {
-            "X-CMC_PRO_API_KEY": "8baeefe8-4a9f-4947-8a9d-7f8ea40d91d3",
-            "Accept": "application/json",
+        # URL برای دریافت قیمت از API نوبیتکس
+        url = f"https://api.nobitex.ir/market/stats"
+
+        params = {
+            "srcCurrency": symbol,
+            "dstCurrency": "-usdt"  # دلار تتر
         }
-        params = {"symbol": symbol, "convert": "USD"}
-        response = requests.get(url, headers=headers, params=params)
+
+        response = requests.get(url, params=params)
         response.raise_for_status()
         data = response.json()
 
         # دریافت قیمت و درصد تغییرات 24 ساعته
-        price = data["data"][symbol]["quote"]["USD"]["price"]
-        percent_change_24h = data["data"][symbol]["quote"]["USD"]["percent_change_24h"]
+        price = data["stats"][f"{symbol}-usdt"]["latest"]
+        percent_change_24h = data["stats"][f"{symbol}-usdt"]["dayChange"]
 
         # محدود کردن اعشار بر اساس شرط
         if price > 1:
-            price = f"{price:.2f}"  # 2 رقم اعشار برای قیمت بالای 1 دلار
+            price = f"{float(price):.2f}"  # 2 رقم اعشار برای قیمت بالای 1 دلار
         else:
-            price = f"{price:.8f}"  # 8 رقم اعشار برای قیمت‌های کوچک‌تر
-
+            price = f"{float(price):.8f}"  # 8 رقم اعشار برای قیمت‌های کوچک‌تر
 
         return price, percent_change_24h
     except requests.RequestException as e:
-        logging.error(f"Error fetching data from CoinMarketCap: {e}")
+        logging.error(f"Error fetching data from Nobitex: {e}")
         return None, None
+
 
 
 async def get_crypto_price_direct(update: Update, context):
