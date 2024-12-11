@@ -1,3 +1,4 @@
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
 import os
@@ -65,6 +66,7 @@ async def send_crypto_prices():
             try:
                 cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name.upper())
                 usdt_to_irr = get_usdt_to_irr_price(crypto_name.lower())
+                usdt_pr = get_usdt_to_irr_price('usdt')
               
 
                 # بررسی داده‌های بازگشتی
@@ -89,7 +91,7 @@ async def send_crypto_prices():
                 logging.error(f"Error fetching price for {crypto_name}: {e}")
                 response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
                 
-
+        response_message += "  {arrow} ⬅️ تتر: {usdt-pr:,.0f} ریال"
         response_message += "\n\nورود به ربات قیمت‌گیری به تومن و دلار\n@dangsho_bot"
        
         await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
