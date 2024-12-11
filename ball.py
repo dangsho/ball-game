@@ -91,7 +91,7 @@ async def send_crypto_prices():
                 logging.error(f"Error fetching price for {crypto_name}: {e}")
                 response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
                 
-        response_message += "  {arrow} ⬅️ تتر: {usdt-pr:,.0f} ریال"
+        response_message += (f"  {arrow} ⬅️ تتر: {usdt_pr:,.0f} ریال")
         response_message += "\n\nورود به ربات قیمت‌گیری به تومن و دلار\n@dangsho_bot"
        
         await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
