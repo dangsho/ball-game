@@ -76,6 +76,7 @@ async def send_crypto_prices():
                 try:
                     cmc_price = float(cmc_price)
                     percent_change_24h = float(percent_change_24h)
+                    usdt_to_irr = float(usdt_to_irr)
 
                     arrow = "🟢" if percent_change_24h > 0 else "🔴"
                     response_message += (
