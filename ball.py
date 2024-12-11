@@ -42,7 +42,7 @@ else:
     
 ADMIN_CHAT_ID = 48232573
 CHANNEL_ID = "@coin_btcc"  # آیدی کانال تلگرام (باید با @ شروع شود)
-CRYPTO_LIST = ["BTC", "ETH", "TRX", "DOGS", "NOT", "X", "MAJOR", "MEMEFI", "RBTC", "GOATS"]  # لیست ارزهایی که قیمت آن‌ها ارسال می‌شود
+CRYPTO_LIST = ["BTC", "ETH", "DOGE", "SHIB", "XRP", "TRX", "DOGS", "NOT", "X", "MAJOR"]  # لیست ارزهایی که قیمت آن‌ها ارسال می‌شود
 
 if not TOKEN:
     raise ValueError("TOKEN is not set. Please set the token as an environment variable.")
@@ -201,10 +201,10 @@ async def get_crypto_price_direct(update: Update, context):
                 # اضافه کردن فلش سبز یا قرمز
                 arrow = "🟢" if percent_change_24h > 0 else "🔴"
                 response_message += (
-                    f"- کوین مارکت کپ: ${cmc_price} {arrow} {abs(percent_change_24h):.2f}%\n"
+                    f"-نوبیتکس دلار: ${cmc_price} {arrow} {abs(percent_change_24h):.2f}%\n"
                 )
             if nobitex_price:
-                response_message += f"- نوبیتکس: {nobitex_price:,} ریال\n"
+                response_message += f"-نوبیتکس ریال: {nobitex_price:,} ریال\n"
             await update.message.reply_text(response_message)
         else:
             return
