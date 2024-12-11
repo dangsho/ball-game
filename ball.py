@@ -141,7 +141,7 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
 
         params = {
             "srcCurrency": symbol,
-            "dstCurrency": "-usdt"  # دلار تتر
+            "dstCurrency": "usdt"  # دلار تتر
         }
 
         response = requests.get(url, params=params)
