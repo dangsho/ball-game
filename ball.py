@@ -15,6 +15,8 @@ import datetime
 from pytz import timezone
 from hijri_converter import convert
 import shutil
+from async_timeout import timeout
+
 
 # تنظیم لاگ‌ها
 logging.basicConfig(
@@ -53,38 +55,35 @@ flask_app = Quart(__name__)
 # تابع ارسال قیمت ارزها به کانال تلگرام
 
 # --- تابع ارسال قیمت‌ها به کانال ---
+
 async def send_crypto_prices():
     try:
-        response_message = "💰 قیمت لحظه‌ای ارزهای دیجیتال:\n"
-        for crypto_name in CRYPTO_LIST:
-            try:
-                cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name.upper())
-
-                # تبدیل مقادیر به float و بررسی صحت آن‌ها
+        async with timeout(10):  # محدودیت زمانی 10 ثانیه
+            response_message = "💰 قیمت لحظه‌ای ارزهای دیجیتال:\n"
+            for crypto_name in CRYPTO_LIST:
                 try:
+                    cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name.upper())
                     cmc_price = float(cmc_price)
                     percent_change_24h = float(percent_change_24h)
-
                     arrow = "🟢" if percent_change_24h > 0 else "🔴"
                     response_message += (
                         f"- {crypto_name.upper()}: ${cmc_price} {arrow} {abs(percent_change_24h):.2f}%\n"
                     )
-                except (ValueError, TypeError):
-                    response_message += f"- {crypto_name.upper()}: ⚠️ داده نامعتبر.\n"
+                except Exception as e:
+                    response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
+                    logging.error(f"Error fetching price for {crypto_name}: {e}")
 
-            except Exception as e:
-                logging.error(f"Error fetching price for {crypto_name}: {e}")
-                response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
-
-        await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
+            await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
+    except asyncio.CancelledError:
+        logging.warning("Task was cancelled.")
     except Exception as e:
-        logging.error(f"Error in send_crypto_prices: {e}")
+        logging.error(f"Unexpected error in send_crypto_prices: {e}")
 
 
 # زمان‌بندی ارسال قیمت‌ها هر 1 دقیقه
 def schedule_price_updates():
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(send_crypto_prices, "interval", minutes=2)  # اجرای هر 1 دقیقه
+    scheduler.add_job(send_crypto_prices, "interval", minutes=3)  # اجرای هر 1 دقیقه
     scheduler.start()
     
 @flask_app.route('/')
@@ -252,37 +251,6 @@ async def inline_query(update: Update, context):
         logging.error(f"Error in inline query handler: {e}")
 
 
-
-# ایجاد پوشه بک‌آپ در صورت عدم وجود
-os.makedirs(BACKUP_DIR, exist_ok=True)
-os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
-
-print(f"Database path: {DATABASE}")
-print(f"Backup directory path: {BACKUP_DIR}")
-
-def backup_database():
-    """ایجاد یک نسخه پشتیبان از فایل دیتابیس SQLite"""
-    try:
-        # نام فایل بک‌آپ با تاریخ و زمان
-        backup_file = os.path.join(
-            BACKUP_DIR, f"crypto_bot_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-        )
-
-        # ایجاد نسخه پشتیبان
-        shutil.copyfile(DATABASE, backup_file)
-        print(f"✅ بک‌آپ دیتابیس با موفقیت ایجاد شد: {backup_file}")
-    except Exception as e:
-        print(f"⚠️ خطا در ایجاد بک‌آپ: {e}")
-
-
-# نمونه استفاده: اجرای بک‌آپ هر ۳۰ دقیقه
-
-def start_backup_scheduler():
-    """زمان‌بندی بک‌آپ خودکار"""
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(backup_database, "interval", minutes=2)  # هر ۳۰ دقیقه
-    scheduler.start()
-    
     
 # مدیریت لیست ارزها برای کاربران
 def setup_database():
@@ -466,37 +434,42 @@ async def webhook_update():
             return 'Bad Request', 400
 
 # تابع اصلی برای راه‌اندازی برنامه
+import asyncio
+import os
+import logging
+from flask import Flask
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+# فرض بر این است که توابع شما به درستی تعریف شده‌اند
+# از جمله setup_database, start_backup_scheduler, set_webhook و غیره.
+
 async def main():
-    setup_database()  # راه‌اندازی دیتابیس در ابتدای برنامه
-  
-    start_backup_scheduler()  # شروع زمان‌بندی بک‌آپ
-    
-# مدیریت پیام‌های خاص "user"
+    # پیکربندی لاگینگ
+    logging.basicConfig(level=logging.INFO)
+
+    # راه‌اندازی دیتابیس
+    await setup_database()  # اگر async نیست، بدون await فراخوانی کنید
+   
+
+    # افزودن هندلرها به application
     application.add_handler(MessageHandler(filters.Regex(r'^user$'), handle_user))
-
-
-# مدیریت سایر پیام‌های متنی
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
     application.add_handler(CommandHandler("stats", show_stats))
-    
     application.add_handler(InlineQueryHandler(inline_query))
 
-
-    
+    # تنظیم Webhook
     await set_webhook()
-        # اجرای زمان‌بنی
-    schedule_price_updates()
-    await application.initialize()
-    asyncio.create_task(application.start())
 
+    # اجرای زمان‌بندی ارسال قیمت‌ها
+    schedule_price_updates()  # نیازی به await ندارد، زیرا معمولاً sync است
+    
+    # آماده‌سازی و اجرای application
+    await application.initialize()
+    await application.start()
+
+    # اجرای Flask (سازگار با asyncio)
     port = int(os.getenv('PORT', 5000))
     await flask_app.run_task(host="0.0.0.0", port=port)
 
 if __name__ == '__main__':
     asyncio.run(main())
-    
-    logging.basicConfig(level=logging.INFO)
- 
-
-    

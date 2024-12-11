@@ -11,3 +11,4 @@ pytz
 hijri-converter
 pyppeteer
 aiohttp
+async_timeout
