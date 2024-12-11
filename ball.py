@@ -132,7 +132,7 @@ def get_usdt_to_irr_price(prls):
 
 
 def get_crypto_price_from_coinmarketcap(crypto_symbol):
-    
+
     """دریافت قیمت ارز دیجیتال از نوبیتکس"""
     symbol = str(crypto_symbol).lower()  # تبدیل نماد ارز به حروف کوچک برای سازگاری با نوبیتکس
     try:
@@ -167,11 +167,18 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
         else:
             price = f"{price:.8f}"  # 8 رقم اعشار برای قیمت‌های کوچک‌تر
 
+        # تبدیل درصد تغییرات به float
+        percent_change_24h = float(percent_change_24h)
+
         return price, percent_change_24h
 
     except requests.RequestException as e:
         logging.error(f"Error fetching data from Nobitex: {e}")
         return None, None
+
+# مثال استفاده
+price, change = get_crypto_price_from_nobitex("btc")
+print(f"Bitcoin Price: {price}, 24h Change: {change}")
 
 
 
