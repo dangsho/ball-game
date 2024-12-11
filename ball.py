@@ -176,9 +176,6 @@ def get_crypto_price_from_coinmarketcap(crypto_symbol):
         logging.error(f"Error fetching data from Nobitex: {e}")
         return None, None
 
-# مثال استفاده
-price, change = get_crypto_price_from_nobitex("btc")
-print(f"Bitcoin Price: {price}, 24h Change: {change}")
 
 
 
