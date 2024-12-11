@@ -59,9 +59,12 @@ flask_app = Quart(__name__)
 async def send_crypto_prices():
     try:
         response_message = "💰 قیمت لحظه‌ای ارزهای دیجیتال:\n"
+        
+            
         for crypto_name in CRYPTO_LIST:
             try:
                 cmc_price, percent_change_24h = get_crypto_price_from_coinmarketcap(crypto_name.upper())
+                usdt_to_irr = get_usdt_to_irr_price(crypto_name.upper())
               
 
                 # بررسی داده‌های بازگشتی
@@ -76,16 +79,18 @@ async def send_crypto_prices():
 
                     arrow = "🟢" if percent_change_24h > 0 else "🔴"
                     response_message += (
-                        f"- {crypto_name.upper()}: ${cmc_price} {arrow} {abs(percent_change_24h):.2f}%\n"
-                    )
+                    f"- {crypto_name.upper()}: ${cmc_price:.2f} | {usdt_to_irr:,.0f} ریال {arrow} {abs(percent_change_24h):.2f}%\n"
+                )
                 except (ValueError, TypeError):
                     response_message += f"- {crypto_name.upper()}: ⚠️ داده نامعتبر.\n"
 
             except Exception as e:
                 logging.error(f"Error fetching price for {crypto_name}: {e}")
                 response_message += f"- {crypto_name.upper()}: ⚠️ خطا در دریافت قیمت.\n"
-                response_message = "💰 قیمت لحظه‌ای ارزهای دیجیتال:\n"
+                
 
+        response_message += "\n\nورود به ربات قیمت‌گیری به تومن و دلار\n@dangsho_bot"
+       
         await bot.send_message(chat_id=CHANNEL_ID, text=response_message)
     except Exception as e:
         logging.error(f"Error in send_crypto_prices: {e}")
