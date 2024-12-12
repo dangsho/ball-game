@@ -1,7 +1,6 @@
 import logging
 from telegram import Update
 from telegram.ext import Application, MessageHandler, ContextTypes, filters
-import os
 import emoji  # برای بررسی ایموجی‌ها
 
 # توکن ربات
@@ -22,12 +21,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 # تابع برای بررسی اینکه متن فقط شامل ایموجی است
 def contains_only_emoji(text: str) -> bool:
     stripped_text = text.strip()
     return all(char in emoji.EMOJI_DATA for char in stripped_text)
-
 
 # تابع مدیریت پیام‌ها
 async def handle_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -98,23 +95,19 @@ async def handle_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Error handling message: {e}")
         await message.reply_text("خطایی رخ داد. لطفاً دوباره تلاش کنید.")
 
-
 # تابع اصلی
-def main():
+async def main():
     application = Application.builder().token(TOKEN).build()
 
-    # تنظیم وب‌هوک
-    public_url = os.getenv("RENDER_EXTERNAL_URL")
-    webhook_url = f"{public_url}/webhook"
-      # باید این آدرس را با دامنه خودتان جایگزین کنید
-    
     # هندلر برای تمامی پیام‌ها
     application.add_handler(MessageHandler(filters.ALL, handle_all_messages))
-    
-    application.run_webhook(listen="0.0.0.0",
-                            port=int(os.environ.get('PORT', 5000)),
-                            url_path=TOKEN)
-    application.bot.set_webhook(webhook_url)
-    
+
+    # اجرای ربات در حالت غیرمسدود کننده
+    try:
+        await application.run_polling(drop_pending_updates=True)
+    except Exception as e:
+        logger.error(f"Error in polling: {e}")
+
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
