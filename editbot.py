@@ -1,12 +1,12 @@
 import logging
 from telegram import Update
 from telegram.ext import Application, MessageHandler, ContextTypes, filters
+import os
+import emoji  # برای بررسی ایموجی‌ها
 
 # توکن ربات
-TOKEN ='7899502015:AAHbkiEaoJG5cwUOQVUsnrrSGq7KdiGicWQ'
-CHANNEL_ID = '@MusiccBikalam'  # یوزرنیم یا آیدی عددی کانال
 TOKEN = '7899502015:AAHbkiEaoJG5cwUOQVUsnrrSGq7KdiGicWQ'
-# متن مورد نظر برای اضافه شدن به پیام
+CHANNEL_ID = '@MusiccBikalam'  # یوزرنیم یا آیدی عددی کانال
 APPEND_TEXT = """\n\n
 @MusiccBikalam
 
@@ -23,91 +23,98 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# تابع مدیریت انواع پیام‌ها
+# تابع برای بررسی اینکه متن فقط شامل ایموجی است
+def contains_only_emoji(text: str) -> bool:
+    stripped_text = text.strip()
+    return all(char in emoji.EMOJI_DATA for char in stripped_text)
+
+
+# تابع مدیریت پیام‌ها
 async def handle_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         bot = context.bot
+        message = update.message
 
-        # مدیریت پیام متنی
-        if update.message.text:
-            await bot.send_message(
-                chat_id=CHANNEL_ID,
-                text=update.message.text + APPEND_TEXT
-            )
-            logger.info("Text message forwarded to channel.")
+        # جلوگیری از ارسال متن، ایموجی، استیکر و گیف
+        if message.text and (contains_only_emoji(message.text) or message.text.strip()):
+            await message.reply_text("متن‌ها و ایموجی‌ها به کانال ارسال نمی‌شوند.")
+            logger.info("Text or emoji-only message ignored.")
+            return
+
+        if message.sticker:
+            await message.reply_text("پیام‌های استیکر به کانال ارسال نمی‌شوند.")
+            logger.info("Sticker message ignored.")
+            return
+
+        if message.animation:
+            await message.reply_text("پیام‌های گیف به کانال ارسال نمی‌شوند.")
+            logger.info("Animation (GIF) message ignored.")
+            return
 
         # مدیریت عکس
-        elif update.message.photo:
-            # بزرگترین سایز عکس را انتخاب می‌کنیم
-            photo = update.message.photo[-1].file_id
-            caption = (update.message.caption or "") + APPEND_TEXT
+        if message.photo:
+            photo = message.photo[-1].file_id
             await bot.send_photo(
                 chat_id=CHANNEL_ID,
                 photo=photo,
-                caption=caption
+                caption=APPEND_TEXT  # حذف متن قبلی و افزودن متن جدید
             )
-            logger.info("Photo message forwarded to channel.")
+            logger.info("Photo message forwarded to channel with updated caption.")
 
         # مدیریت ویدیو
-        elif update.message.video:
-            video = update.message.video.file_id
-            caption = (update.message.caption or "") + APPEND_TEXT
+        elif message.video:
+            video = message.video.file_id
             await bot.send_video(
                 chat_id=CHANNEL_ID,
                 video=video,
-                caption=caption
+                caption=APPEND_TEXT  # حذف متن قبلی و افزودن متن جدید
             )
-            logger.info("Video message forwarded to channel.")
+            logger.info("Video message forwarded to channel with updated caption.")
 
         # مدیریت فایل صوتی (موسیقی)
-        elif update.message.audio:
-            audio = update.message.audio.file_id
-            caption = (update.message.caption or "") + APPEND_TEXT
+        elif message.audio:
+            audio = message.audio.file_id
             await bot.send_audio(
                 chat_id=CHANNEL_ID,
                 audio=audio,
-                caption=caption
+                caption=APPEND_TEXT  # حذف متن قبلی و افزودن متن جدید
             )
-            logger.info("Audio message forwarded to channel.")
+            logger.info("Audio message forwarded to channel with updated caption.")
 
         # مدیریت فایل‌های عمومی (مثل PDF)
-        elif update.message.document:
-            document = update.message.document.file_id
-            caption = (update.message.caption or "") + APPEND_TEXT
+        elif message.document:
+            document = message.document.file_id
             await bot.send_document(
                 chat_id=CHANNEL_ID,
                 document=document,
-                caption=caption
+                caption=APPEND_TEXT  # حذف متن قبلی و افزودن متن جدید
             )
-            logger.info("Document message forwarded to channel.")
-
-        # مدیریت استیکر
-        elif update.message.sticker:
-            sticker = update.message.sticker.file_id
-            await bot.send_sticker(
-                chat_id=CHANNEL_ID,
-                sticker=sticker
-            )
-            logger.info("Sticker forwarded to channel.")
+            logger.info("Document message forwarded to channel with updated caption.")
 
         # ارسال پیام تایید به کاربر
-        await update.message.reply_text("پیام شما با موفقیت به کانال ارسال شد!")
+        await message.reply_text("پیام شما با موفقیت پردازش شد!")
 
     except Exception as e:
         logger.error(f"Error handling message: {e}")
-        await update.message.reply_text("خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+        await message.reply_text("خطایی رخ داد. لطفاً دوباره تلاش کنید.")
 
 
 # تابع اصلی
 def main():
     application = Application.builder().token(TOKEN).build()
 
+    # تنظیم وب‌هوک
+    public_url = os.getenv("RENDER_EXTERNAL_URL")
+    webhook_url = f"{public_url}/webhook"
+      # باید این آدرس را با دامنه خودتان جایگزین کنید
+    
     # هندلر برای تمامی پیام‌ها
     application.add_handler(MessageHandler(filters.ALL, handle_all_messages))
-
-    # اجرای ربات
-    application.run_polling()
-
-
+    
+    application.run_webhook(listen="0.0.0.0",
+                            port=int(os.environ.get('PORT', 5000)),
+                            url_path=TOKEN)
+    application.bot.set_webhook(webhook_url)
+    
 if __name__ == "__main__":
     main()
