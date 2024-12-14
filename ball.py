@@ -214,7 +214,9 @@ async def get_crypto_price_direct(update: Update, context):
                     f"-نوبیتکس دلار: ${cmc_price} {arrow} {abs(percent_change_24h):.2f}%\n"
                 )
             if nobitex_price:
-                response_message += f"-نوبیتکس ریال: {nobitex_price:,} ریال\n"
+                response_message += f"""- نوبیتکس: {nobitex_price:,} ریال
+
+https://t.me/coin_btcc"""
             await update.message.reply_text(response_message)
         else:
             return
