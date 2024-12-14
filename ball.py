@@ -389,15 +389,28 @@ async def forward_message_to_admin(update: Update, context):
 
 
 # تابع غیرهمزمان دریافت مناسبت‌های تقویم از API
-async def get_calendar_events():
+
+
+# تابع دریافت مناسبت‌های تقویم از API
+def get_calendar_events():
     try:
         response = requests.get("https://api.keybit.ir/time/")
         if response.status_code == 200:
             data = response.json()
-            events_shamsi = "\n".join(data["result"]["events"]["jalali"])
-            events_qamari = "\n".join(data["result"]["events"]["hijri"])
-            return events_shamsi, events_qamari
+            
+            # لاگ کردن کل پاسخ برای بررسی دقیق
+            logging.debug(f"API Response: {data}")
+            
+            # بررسی اینکه آیا کلید 'result' در داده‌ها وجود دارد
+            if 'result' in data:
+                events_shamsi = "\n".join(data["result"]["events"]["jalali"])
+                events_qamari = "\n".join(data["result"]["events"]["hijri"])
+                return events_shamsi, events_qamari
+            else:
+                logging.error("Key 'result' not found in the API response")
+                return "عدم دریافت مناسبت‌های شمسی", "عدم دریافت مناسبت‌های قمری"
         else:
+            logging.error(f"API responded with status code {response.status_code}")
             return "عدم دریافت مناسبت‌های شمسی", "عدم دریافت مناسبت‌های قمری"
     except Exception as e:
         logging.error(f"Error fetching calendar events: {e}")
