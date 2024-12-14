@@ -386,11 +386,64 @@ async def forward_message_to_admin(update: Update, context):
     except Exception as e:
         logging.error(f"Error forwarding message to admin: {e}")
 
-# به‌روزرسانی handler پیام‌ها
+
+
+# تابع غیرهمزمان دریافت مناسبت‌های تقویم از API
+async def get_calendar_events():
+    try:
+        response = requests.get("https://api.keybit.ir/time/")
+        if response.status_code == 200:
+            data = response.json()
+            events_shamsi = "\n".join(data["result"]["events"]["jalali"])
+            events_qamari = "\n".join(data["result"]["events"]["hijri"])
+            return events_shamsi, events_qamari
+        else:
+            return "عدم دریافت مناسبت‌های شمسی", "عدم دریافت مناسبت‌های قمری"
+    except Exception as e:
+        logging.error(f"Error fetching calendar events: {e}")
+        return "خطا در دریافت مناسبت‌ها", "خطا در دریافت مناسبت‌ها"
+
+# تابع غیرهمزمان ارسال اطلاعات تاریخ به کاربر
+async def send_dates_info(update: Update):
+    try:
+        # تنظیمات زمان و تاریخ
+        tehran_tz = timezone("Asia/Tehran")
+        tehran_time = datetime.datetime.now(tehran_tz)
+
+        # تبدیل تاریخ به شمسی و قمری
+        jalali_date = jdatetime.datetime.fromgregorian(datetime=tehran_time)
+        gregorian_date = tehran_time.strftime("%Y-%m-%d")
+        islamic_date = convert.Gregorian(tehran_time.year, tehran_time.month, tehran_time.day).to_hijri()
+        hijri_date = f"{islamic_date.year}-{islamic_date.month:02d}-{islamic_date.day:02d}"
+
+        # دریافت مناسبت‌ها از API
+        events_shamsi, events_qamari = await get_calendar_events()
+
+        # ساخت پیام برای ارسال
+        message = (
+            f"⏰ **تاریخ و زمان فعلی:**\n"
+            f"🕒 **ساعت:** {tehran_time.strftime('%H:%M:%S')}\n\n"
+            f"📅 **تاریخ شمسی:** {jalali_date.strftime('%Y/%m/%d')}\n"
+            f"📅 **تاریخ میلادی:** {gregorian_date}\n"
+            f"📅 **تاریخ قمری:** {hijri_date}\n\n"
+            f"📌 **مناسبت‌های شمسی:**\n{events_shamsi if events_shamsi else 'هیچ مناسبت خاصی وجود ندارد.'}\n\n"
+            f"📌 **مناسبت‌های قمری:**\n{events_qamari if events_qamari else 'هیچ مناسبت خاصی وجود ندارد.'}\n"
+        )
+
+        # ارسال پیام
+        await update.message.reply_text(message)
+    except Exception as e:
+        logging.error(f"Error in send_dates_info: {e}")
+
+# به‌روزرسانی هندلر پیام‌ها
 async def handle_message(update: Update, context):
     try:
-        # فوروارد کردن پیام به مدیر
-        await forward_message_to_admin(update, context)
+        message_text = update.message.text.strip().lower()
+
+        # بررسی برای کلمات کلیدی تاریخ
+        if message_text in ["تاریخ", "ontime"]:
+            await send_dates_info(update)
+            return
 
         # مدیریت سایر دستورها و درخواست‌ها   
         
