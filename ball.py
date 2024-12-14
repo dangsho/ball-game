@@ -388,19 +388,24 @@ async def forward_message_to_admin(update: Update, context):
 
 
 
+import requests
+import logging
+import datetime
+from pytz import timezone
+import jdatetime
+from hijri_converter import convert
+from telegram import Update
+
 # تابع غیرهمزمان دریافت مناسبت‌های تقویم از API
-
-
-# تابع دریافت مناسبت‌های تقویم از API
-def get_calendar_events():
+async def get_calendar_events():
     try:
         response = requests.get("https://api.keybit.ir/time/")
         if response.status_code == 200:
             data = response.json()
-            
+
             # لاگ کردن کل پاسخ برای بررسی دقیق
             logging.debug(f"API Response: {data}")
-            
+
             # بررسی اینکه آیا کلید 'result' در داده‌ها وجود دارد
             if 'result' in data:
                 events_shamsi = "\n".join(data["result"]["events"]["jalali"])
@@ -408,13 +413,13 @@ def get_calendar_events():
                 return events_shamsi, events_qamari
             else:
                 logging.error("Key 'result' not found in the API response")
-                return "عدم دریافت مناسبت‌های شمسی", "عدم دریافت مناسبت‌های قمری"
+                return None, None
         else:
             logging.error(f"API responded with status code {response.status_code}")
-            return "عدم دریافت مناسبت‌های شمسی", "عدم دریافت مناسبت‌های قمری"
+            return None, None
     except Exception as e:
         logging.error(f"Error fetching calendar events: {e}")
-        return "خطا در دریافت مناسبت‌ها", "خطا در دریافت مناسبت‌ها"
+        return None, None
 
 # تابع غیرهمزمان ارسال اطلاعات تاریخ به کاربر
 async def send_dates_info(update: Update):
@@ -432,6 +437,10 @@ async def send_dates_info(update: Update):
         # دریافت مناسبت‌ها از API
         events_shamsi, events_qamari = await get_calendar_events()
 
+        # بررسی اینکه آیا مناسبت‌ها دریافت شده‌اند
+        events_shamsi = events_shamsi if events_shamsi else "هیچ مناسبت خاصی وجود ندارد."
+        events_qamari = events_qamari if events_qamari else "هیچ مناسبت خاصی وجود ندارد."
+
         # ساخت پیام برای ارسال
         message = (
             f"⏰ **تاریخ و زمان فعلی:**\n"
@@ -439,8 +448,8 @@ async def send_dates_info(update: Update):
             f"📅 **تاریخ شمسی:** {jalali_date.strftime('%Y/%m/%d')}\n"
             f"📅 **تاریخ میلادی:** {gregorian_date}\n"
             f"📅 **تاریخ قمری:** {hijri_date}\n\n"
-            f"📌 **مناسبت‌های شمسی:**\n{events_shamsi if events_shamsi else 'هیچ مناسبت خاصی وجود ندارد.'}\n\n"
-            f"📌 **مناسبت‌های قمری:**\n{events_qamari if events_qamari else 'هیچ مناسبت خاصی وجود ندارد.'}\n"
+            f"📌 **مناسبت‌های شمسی:**\n{events_shamsi}\n\n"
+            f"📌 **مناسبت‌های قمری:**\n{events_qamari}\n"
         )
 
         # ارسال پیام
