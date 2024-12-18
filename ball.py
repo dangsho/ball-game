@@ -52,7 +52,34 @@ bot = Bot(token=TOKEN)
 application = Application.builder().token(TOKEN).build()
 flask_app = Quart(__name__)
 
+async def notify_admin_about_usage(update: Update):
+    try:
+        # استخراج اطلاعات کاربر یا گروه/کانال
+        chat = update.effective_chat
+        user = update.effective_user
 
+        # تعیین نوع چت
+        chat_type = "کاربر"
+        if chat.type == "group":
+            chat_type = "گروه"
+        elif chat.type == "channel":
+            chat_type = "کانال"
+
+        # ساخت پیام برای مدیر
+        message_to_admin = (
+            f"🔔 استفاده از ربات:\n\n"
+            f"👤 شناسه کاربر: {user.id}\n"
+            f"📛 نام کاربری: @{user.username if user.username else 'نامشخص'}\n"
+            f"💬 متن پیام: {update.message.text if update.message else 'پیام موجود نیست'}\n"
+            f"📍 نوع چت: {chat_type}\n"
+            f"🆔 شناسه چت: {chat.id}\n"
+        )
+
+        # ارسال پیام به مدیر
+        await bot.send_message(chat_id=ADMIN_CHAT_ID, text=message_to_admin)
+    except Exception as e:
+        logging.error(f"Error notifying admin about usage: {e}")
+        
 # تابع ارسال قیمت ارزها به کانال تلگرام
 
 # --- تابع ارسال قیمت‌ها به کانال ---
@@ -460,6 +487,9 @@ async def send_dates_info(update: Update):
 # به‌روزرسانی هندلر پیام‌ها
 async def handle_message(update: Update, context):
     try:
+        
+        await notify_admin_about_usage(update)
+        
         message_text = update.message.text.strip().lower()
 
         # بررسی برای کلمات کلیدی تاریخ
