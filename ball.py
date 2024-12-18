@@ -54,25 +54,36 @@ flask_app = Quart(__name__)
 
 async def notify_admin_about_usage(update: Update):
     try:
-        # استخراج اطلاعات کاربر یا گروه/کانال
+        # استخراج اطلاعات چت و کاربر
         chat = update.effective_chat
         user = update.effective_user
 
-        # تعیین نوع چت
+        # تعیین نوع چت و نام چت
         chat_type = "کاربر"
+        chat_name = "نامشخص"
         if chat.type == "group":
             chat_type = "گروه"
+            chat_name = chat.title
         elif chat.type == "channel":
             chat_type = "کانال"
+            chat_name = chat.title
+
+        # بررسی اینکه آیا ربات در این چت ادمین است
+        is_admin = False
+        if chat.type in ["group", "channel"]:
+            bot_member = await bot.get_chat_member(chat_id=chat.id, user_id=bot.id)
+            is_admin = bot_member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
 
         # ساخت پیام برای مدیر
         message_to_admin = (
             f"🔔 استفاده از ربات:\n\n"
             f"👤 شناسه کاربر: {user.id}\n"
             f"📛 نام کاربری: @{user.username if user.username else 'نامشخص'}\n"
-            f"💬 متن پیام: {update.message.text if update.message else 'پیام موجود نیست'}\n"
             f"📍 نوع چت: {chat_type}\n"
+            f"🏷️ نام {chat_type}: {chat_name}\n"
             f"🆔 شناسه چت: {chat.id}\n"
+            f"🤖 وضعیت ربات: {'ادمین' if is_admin else 'عادی'}\n"
+            f"💬 متن پیام: {update.message.text if update.message else 'پیام موجود نیست'}"
         )
 
         # ارسال پیام به مدیر
